@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { env } from '@/lib/env';
 import { STATE_COOKIE, cookieOptions } from '@/lib/auth/session';
 import { privateHeaders } from '@/lib/auth/http';
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const config = env();
     const state = randomUUID();
@@ -26,12 +26,8 @@ export async function GET() {
     );
     return response;
   } catch {
-    return NextResponse.redirect(
-      new URL(
-        '/?error=CONFIGURATION_ERROR',
-        process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-      ),
-      { headers: privateHeaders },
-    );
+    return NextResponse.redirect(new URL('/?error=CONFIGURATION_ERROR', request.url), {
+      headers: privateHeaders,
+    });
   }
 }

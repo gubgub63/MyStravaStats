@@ -3,7 +3,6 @@ export const CACHE_TTL_MS = 10 * 60 * 1000;
 export class PrivateCache<T> {
   private entries = new Map<string, { value: T; expires: number }>();
   private pending = new Map<string, Promise<T>>();
-  private generation = new Map<string, number>();
   constructor(
     private ttl = CACHE_TTL_MS,
     private maxEntries = 100,
@@ -15,10 +14,9 @@ export class PrivateCache<T> {
     if (cached) return cached.value;
     const inflight = this.pending.get(key);
     if (inflight) return inflight;
-    const generation = this.generation.get(key) ?? 0;
     const promise = load()
       .then((value) => {
-        if ((this.generation.get(key) ?? 0) === generation) {
+        if (this.pending.get(key) === promise) {
           if (this.entries.size >= this.maxEntries)
             this.entries.delete(this.entries.keys().next().value!);
           const entry = { value, expires: Date.now() + this.ttl };
@@ -41,7 +39,6 @@ export class PrivateCache<T> {
       if (key.startsWith(prefix)) {
         this.entries.delete(key);
         this.pending.delete(key);
-        this.generation.set(key, (this.generation.get(key) ?? 0) + 1);
       }
   }
 }

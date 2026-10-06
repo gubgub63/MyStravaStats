@@ -189,7 +189,7 @@ describe('routes', () => {
   });
   it('completes OAuth from sealed state and redirects with encrypted session', async () => {
     const { GET: start } = await import('@/app/api/auth/strava/route');
-    const first = await start();
+    const first = await start(new Request('http://localhost:3000/api/auth/strava'));
     jar.set('strava_state', first.cookies.get('strava_state')!.value);
     const auth = new URL(first.headers.get('location')!);
     expect(auth.searchParams.get('scope')).toBe('read,activity:read');

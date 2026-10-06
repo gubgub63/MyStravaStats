@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   const store = await cookies();
   const sealed = store.get(STATE_COOKIE)?.value;
   store.set(STATE_COOKIE, '', { ...cookieOptions, maxAge: 0 });
-  const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const base = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
   try {
     const config = env();
     const payload = sealed

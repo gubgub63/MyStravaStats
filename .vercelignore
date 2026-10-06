@@ -1,0 +1,10 @@
+.env*
+!.env.example
+.git
+.playwright-mcp
+.next
+node_modules
+coverage
+*.tsbuildinfo
+docs/screenshots
+tests
