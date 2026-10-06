@@ -16,6 +16,14 @@ export function purgeDashboard(session: StravaSession) {
   cache.deletePrefix(session.sessionId + ':');
 }
 export async function loadDashboard(session: StravaSession, days: number): Promise<DashboardData> {
+  try {
+    return await readDashboard(session, days);
+  } catch (error) {
+    if (error instanceof AppError && error.status === 401) purgeDashboard(session);
+    throw error;
+  }
+}
+async function readDashboard(session: StravaSession, days: number): Promise<DashboardData> {
   // Validate/rotate the cookie even when activities are served from memory.
   let valid = await getValidSession(session);
   const key = `${session.sessionId}:${session.athlete.id}:${[...session.scopes].sort().join(',')}:${days}`;

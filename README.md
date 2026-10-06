@@ -159,6 +159,6 @@ L’audit des dépendances de production est intégré au pipeline. Au moment de
 
 Les tests couvrent unités, semaines et dates locales, normalisation, sessions invalides, callback OAuth, chiffrement du cookie, renouvellement concurrent, pagination, erreurs 401/403/429/500, cache privé, CSRF, déconnexion et révocation. Aucun appel réseau Strava réel n’est effectué par les tests.
 
-Voir [CONTRIBUTING.md](CONTRIBUTING.md), [SPEC.md](SPEC.md) et [la page de confidentialité](src/app/privacy/page.tsx). Les captures du README proviennent exclusivement de `/demo` et ne contiennent aucune donnée Strava réelle.
+Voir [l’état de validation](docs/VALIDATION.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SPEC.md](SPEC.md) et [la page de confidentialité](src/app/privacy/page.tsx). Les captures du README proviennent exclusivement de `/demo` et ne contiennent aucune donnée Strava réelle.
 
 Licence [MIT](LICENSE). Strava est une marque de Strava, Inc. Ce projet est indépendant.
