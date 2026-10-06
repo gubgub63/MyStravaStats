@@ -1,0 +1,9 @@
+node_modules
+.next
+.playwright-mcp
+package-lock.json
+.env.local
+SPEC.md
+idea.md
+AGENTS.md
+CLAUDE.md

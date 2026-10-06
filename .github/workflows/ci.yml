@@ -1,0 +1,48 @@
+name: Validate and deploy
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm audit --omit=dev
+      - run: npm run build
+  deploy:
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.VERCEL_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Pull production environment
+        run: npx --yes vercel@62.4.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build for Vercel
+        run: npx --yes vercel@62.4.0 build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy production
+        run: npx --yes vercel@62.4.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
