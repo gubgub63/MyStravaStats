@@ -1,13 +1,5 @@
 'use client';
-import {
-    ResponsiveContainer,
-    AreaChart,
-    Area,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-} from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import type { Aggregation } from '@/lib/dashboard/aggregate';
 import { number, secondsToDuration } from '@/lib/utils/units';
 export type Metric = 'distanceKm' | 'elevationGainM' | 'movingTimeSeconds';
@@ -36,29 +28,30 @@ export default function WeeklyChart({
                 aria-label={`${metricLabels[metric].title} par semaine ; valeurs disponibles dans le tableau ci-dessous`}
             >
                 <ResponsiveContainer width="100%" height="100%" minWidth={1}>
-                    <AreaChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: -20 }}>
-                        <defs>
-                            <linearGradient id="distance-fill" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="var(--blue)" stopOpacity={0.18} />
-                                <stop offset="100%" stopColor="var(--blue)" stopOpacity={0.01} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 5" />
+                    <BarChart
+                        data={data}
+                        accessibilityLayer
+                        margin={{ top: 12, right: 4, bottom: 0, left: -20 }}
+                        barCategoryGap="30%"
+                    >
+                        <CartesianGrid vertical={false} stroke="var(--line)" />
                         <XAxis
                             dataKey="label"
                             tickLine={false}
                             axisLine={false}
                             minTickGap={22}
-                            tick={{ fill: 'var(--muted)', fontSize: 11 }}
+                            tick={{ fill: 'var(--muted)', fontSize: 12 }}
                             dy={12}
                         />
                         <YAxis
+                            unit={` ${metricLabels[metric].unit}`}
                             tickLine={false}
                             axisLine={false}
-                            tick={{ fill: 'var(--muted)', fontSize: 11 }}
-                            width={55}
+                            tick={{ fill: 'var(--muted)', fontSize: 12 }}
+                            width={72}
                         />
                         <Tooltip
+                            cursor={{ fill: 'var(--soft)' }}
                             contentStyle={{
                                 background: 'var(--surface)',
                                 border: '1px solid var(--line)',
@@ -72,15 +65,14 @@ export default function WeeklyChart({
                             ]}
                             labelFormatter={(label) => `Semaine du ${label}`}
                         />
-                        <Area
-                            type="monotone"
+                        <Bar
+                            maxBarSize={32}
+                            radius={[3, 3, 0, 0]}
                             dataKey="value"
-                            stroke="var(--blue)"
-                            strokeWidth={2}
-                            fill="url(#distance-fill)"
+                            fill="var(--blue)"
                             isAnimationActive={false}
                         />
-                    </AreaChart>
+                    </BarChart>
                 </ResponsiveContainer>
             </div>
             <details className="chart-values">

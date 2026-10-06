@@ -12,15 +12,21 @@ export function Brand() {
         </Link>
     );
 }
-export function Header() {
+export function Header({ dashboard = false }: { dashboard?: boolean }) {
     return (
-        <header className="site-header">
+        <header className={`site-header${dashboard ? ' dashboard-header' : ''}`}>
             <div className="container header-inner">
                 <Brand />
                 <nav aria-label="Navigation principale">
-                    <Link href="/demo" className="quiet-link">
-                        Aperçu
-                    </Link>
+                    {dashboard ? (
+                        <a href="#main" className="dashboard-nav-current" aria-current="page">
+                            Tableau de bord
+                        </a>
+                    ) : (
+                        <Link href="/demo" className="quiet-link">
+                            Aperçu
+                        </Link>
+                    )}
                     <a
                         className="quiet-link github-link"
                         href="https://github.com/gubgub63/MyStravaStats"
@@ -41,7 +47,11 @@ export function Footer() {
             <span>myStats · Toujours en mouvement.</span>
             <div>
                 <Link href="/privacy">Confidentialité</Link>
-                <a href="https://github.com/gubgub63/MyStravaStats" target="_blank" rel="noreferrer">
+                <a
+                    href="https://github.com/gubgub63/MyStravaStats"
+                    target="_blank"
+                    rel="noreferrer"
+                >
                     GitHub ↗
                 </a>
                 <span className="powered">Powered by Strava</span>

@@ -9,6 +9,9 @@ import {
   ArrowUpRight,
   RefreshCw,
   Route,
+  CalendarDays,
+  Bike,
+  Footprints,
   Mountain,
   Clock3,
   Activity,
@@ -57,11 +60,13 @@ export function Dashboard({
     return { from: range.from, to: range.to };
   });
   const [sport, setSport] = useState('all');
+  const [customDates, setCustomDates] = useState(false);
   const [metric, setMetric] = useState<Metric>('distanceKm');
   const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState('');
   const [retryAt, setRetryAt] = useState(0);
   const [visible, setVisible] = useState(10);
+  const customPeriodTrigger = useRef<HTMLButtonElement>(null);
   const active = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const load = useCallback(
@@ -117,6 +122,8 @@ export function Dashboard({
   }, [selectedPeriod, demo, load]);
   function period(value: DashboardPeriod) {
     setSelectedPeriod(value);
+    const range = resolvePeriod(value);
+    setDateInputs({ from: range.from, to: range.to });
     setSport('all');
     setVisible(10);
     if (demo) void load(value);
@@ -131,7 +138,7 @@ export function Dashboard({
   const cachedUntil = data ? new Date(data.cacheExpiresAt).getTime() : 0;
   return (
     <>
-      <Header />
+      <Header dashboard />
       <main id="main" className="container dashboard-main">
         {demo && (
           <div className="demo-banner">
@@ -143,7 +150,6 @@ export function Dashboard({
         )}
         <div className="dashboard-heading">
           <div>
-            <span className="eyebrow">TON CARNET DE MOUVEMENT</span>
             <h1>
               {data?.athlete.firstname
                 ? `Bonjour ${data.athlete.firstname}.`
@@ -184,22 +190,34 @@ export function Dashboard({
           </div>
         </div>
         <div className="dashboard-toolbar">
-          <div className="segmented" aria-label="Période">
-            {[
-              [90, '3 mois'],
-              [180, '6 mois'],
-              [365, '1 an'],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                aria-pressed={selectedPeriod === value}
-                className={selectedPeriod === value ? 'selected' : ''}
-                disabled={loading}
-                onClick={() => period(Number(value))}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="period-controls">
+            <div className="segmented" role="group" aria-label="Période">
+              {[
+                [90, '3 mois'],
+                [180, '6 mois'],
+                [365, '1 an'],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  aria-pressed={selectedPeriod === value}
+                  className={selectedPeriod === value ? 'selected' : ''}
+                  disabled={loading}
+                  onClick={() => period(Number(value))}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className={`custom-period${customDates || typeof selectedPeriod !== 'number' ? ' selected' : ''}`}
+              aria-expanded={customDates}
+              ref={customPeriodTrigger}
+              aria-controls="custom-date-range"
+              onClick={() => setCustomDates(!customDates)}
+            >
+              <CalendarDays size={16} aria-hidden="true" /> Personnaliser
+            </button>
           </div>
           <label className="sport-select">
             <span className="sr-only">Filtrer par sport</span>
@@ -221,6 +239,8 @@ export function Dashboard({
           </label>
         </div>
         <form
+          id="custom-date-range"
+          hidden={!customDates}
           className="date-range-form"
           onSubmit={(event) => {
             event.preventDefault();
@@ -232,6 +252,8 @@ export function Dashboard({
             }
             setError('');
             period({ ...dateInputs });
+            setCustomDates(false);
+            customPeriodTrigger.current?.focus();
           }}
         >
           <div className="date-range-fields">
@@ -277,59 +299,75 @@ export function Dashboard({
         )}
         {loading ? (
           <div role="status" aria-label="Chargement des activités">
-            <div className="kpi-grid">
-              {[1, 2, 3, 4].map((i) => (
-                <div className="kpi skeleton" key={i} />
-              ))}
+            <div className="overview">
+              <div className="kpi-grid">
+                {[1, 2, 3, 4].map((i) => (
+                  <div className="kpi skeleton" key={i} />
+                ))}
+              </div>
             </div>
             <div className="chart-panel skeleton" style={{ height: 330, marginTop: 24 }} />
             <span className="sr-only">Chargement de tes activités Strava…</span>
           </div>
         ) : stats && data ? (
           <>
-            <div className="kpi-grid">
-              {[
-                {
-                  label: 'Distance',
-                  value: number(stats.summary.distanceKm, 1),
-                  unit: 'km',
-                  icon: Route,
-                },
-                {
-                  label: 'Dénivelé positif',
-                  value: number(stats.summary.elevationGainM),
-                  unit: 'm',
-                  icon: Mountain,
-                },
-                {
-                  label: 'Temps en mouvement',
-                  value: secondsToDuration(stats.summary.movingTimeSeconds),
-                  unit: '',
-                  icon: Clock3,
-                },
-                {
-                  label: 'Activités',
-                  value: number(stats.summary.activityCount),
-                  unit: 'sorties',
-                  icon: Activity,
-                },
-              ].map((k) => (
-                <div className="kpi" key={k.label}>
-                  <div className="kpi-label">
-                    {k.label}
-                    <k.icon size={17} strokeWidth={1.5} />
+            <section className="overview" aria-label="Bilan de la période">
+              <div className="overview-heading">
+                <h2>Ton bilan</h2>
+                <span>
+                  {new Date(`${data.range.from}T12:00:00`).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}{' '}
+                  —{' '}
+                  {new Date(`${data.range.to}T12:00:00`).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}{' '}
+                  <span className="period-days">· {data.days} jours</span>
+                </span>
+              </div>
+              <div className="kpi-grid">
+                {[
+                  {
+                    label: 'Distance',
+                    value: number(stats.summary.distanceKm, 1),
+                    unit: 'km',
+                    icon: Route,
+                  },
+                  {
+                    label: 'Dénivelé positif',
+                    value: number(stats.summary.elevationGainM),
+                    unit: 'm',
+                    icon: Mountain,
+                  },
+                  {
+                    label: 'Temps en mouvement',
+                    value: secondsToDuration(stats.summary.movingTimeSeconds),
+                    unit: '',
+                    icon: Clock3,
+                  },
+                  {
+                    label: 'Activités',
+                    value: number(stats.summary.activityCount),
+                    unit: 'sorties',
+                    icon: Activity,
+                  },
+                ].map((k) => (
+                  <div className="kpi" key={k.label}>
+                    <div className="kpi-label">
+                      {k.label}
+                      <k.icon size={16} strokeWidth={1.5} aria-hidden="true" />
+                    </div>
+                    <p>
+                      {k.value} <small>{k.unit}</small>
+                    </p>
                   </div>
-                  <p>
-                    {k.value} <small>{k.unit}</small>
-                  </p>
-                  <span className="kpi-note">
-                    {typeof selectedPeriod === 'number'
-                      ? `Sur les ${data.days} derniers jours`
-                      : `Du ${data.range.from.split('-').reverse().join('/')} au ${data.range.to.split('-').reverse().join('/')}`}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </section>
             {stats.summary.activityCount === 0 && (
               <div className="empty-state">
                 <Mountain size={30} />
@@ -345,11 +383,13 @@ export function Dashboard({
               </div>
             )}
             <div className="chart-grid">
-              <section className="chart-panel">
+              <section className="chart-panel" id="rythme">
                 <div className="panel-heading">
                   <div>
-                    <span className="eyebrow">LE FIL DES SEMAINES</span>
-                    <h2>Ton rythme.</h2>
+                    <h2>Ton rythme</h2>
+                    <p className="panel-subtitle">
+                      Le volume de tes sorties, semaine après semaine.
+                    </p>
                   </div>
                   <select
                     aria-label="Métrique hebdomadaire"
@@ -364,8 +404,7 @@ export function Dashboard({
                 <WeeklyChart weekly={stats.weekly} metric={metric} />
               </section>
               <section className="chart-panel sports-panel">
-                <span className="eyebrow">À CHACUN SON TERRAIN</span>
-                <h2>Tes pratiques.</h2>
+                <h2>Tes pratiques</h2>
                 <p className="panel-subtitle">Répartition du temps en mouvement</p>
                 <div className="sport-bars">
                   {stats.sports.map((s, i) => {
@@ -376,7 +415,15 @@ export function Dashboard({
                       <div className="sport-row" key={s.sport}>
                         <div>
                           <span>
-                            <i style={{ opacity: 1 - Math.min(i, 4) * 0.16 }} />
+                            {s.sport === 'Ride' || s.sport === 'VirtualRide' ? (
+                              <Bike size={17} aria-hidden="true" />
+                            ) : s.sport === 'TrailRun' || s.sport === 'Hike' ? (
+                              <Mountain size={17} aria-hidden="true" />
+                            ) : isRunning(s.sport) || s.sport === 'Walk' ? (
+                              <Footprints size={17} aria-hidden="true" />
+                            ) : (
+                              <Activity size={17} aria-hidden="true" />
+                            )}
                             {sportLabel(s.sport)}
                           </span>
                           <strong>{number(share)} %</strong>
@@ -400,10 +447,13 @@ export function Dashboard({
               <section className="running-panel">
                 <div className="panel-heading">
                   <div>
-                    <span className="eyebrow">COURSE & TRAIL</span>
-                    <h2>Un peu plus loin.</h2>
+                    <h2>Course & trail</h2>
+                    <p className="panel-subtitle">
+                      {stats.running.count} sorties · {number(stats.running.distanceKm, 1)} km
+                      parcourus
+                    </p>
                   </div>
-                  <Mountain size={25} strokeWidth={1.3} />
+                  <Mountain size={25} strokeWidth={1.3} aria-hidden="true" />
                 </div>
                 <div className="running-grid">
                   <div>
@@ -448,13 +498,12 @@ export function Dashboard({
                 </p>
               </section>
             )}
-            <section className="activities-panel">
+            <section className="activities-panel" id="sorties">
               <div className="panel-heading">
                 <div>
-                  <span className="eyebrow">LES PAS QUI COMPTENT</span>
-                  <h2>Tes dernières sorties.</h2>
+                  <h2>Tes dernières sorties</h2>
                 </div>
-                <span className="muted">{matching.length} activités</span>
+                <span className="activity-count">{matching.length} activités</span>
               </div>
               <div className="table-scroll">
                 <table className="activities-table">
@@ -483,10 +532,14 @@ export function Dashboard({
                             rel="noreferrer"
                           >
                             <span className="activity-icon">
-                              {isRunning(a.sportType) ? (
-                                <Mountain size={17} />
+                              {a.sportType === 'TrailRun' || a.sportType === 'Hike' ? (
+                                <Mountain size={18} aria-hidden="true" />
+                              ) : isRunning(a.sportType) || a.sportType === 'Walk' ? (
+                                <Footprints size={18} aria-hidden="true" />
+                              ) : a.sportType === 'Ride' || a.sportType === 'VirtualRide' ? (
+                                <Bike size={18} aria-hidden="true" />
                               ) : (
-                                <Route size={17} />
+                                <Activity size={18} aria-hidden="true" />
                               )}
                             </span>
                             <span>
