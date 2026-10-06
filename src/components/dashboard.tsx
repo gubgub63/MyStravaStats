@@ -18,6 +18,12 @@ import { Header, Footer } from './shell';
 import { number, pace, secondsToDuration, localDate } from '@/lib/utils/units';
 import { aggregate, isRunning } from '@/lib/dashboard/aggregate';
 import type { DashboardData } from '@/lib/dashboard/types';
+import {
+  resolvePeriod,
+  periodQuery,
+  type DashboardPeriod,
+  type DateRange,
+} from '@/lib/dashboard/period';
 import { demoData } from '@/lib/dashboard/demo';
 import type { Metric } from './charts';
 const WeeklyChart = dynamic(() => import('./charts'), {
@@ -45,7 +51,11 @@ export function Dashboard({
 }) {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(initialData ?? null);
-  const [days, setDays] = useState(90);
+  const [selectedPeriod, setSelectedPeriod] = useState<DashboardPeriod>(90);
+  const [dateInputs, setDateInputs] = useState<DateRange>(() => {
+    const range = initialData?.range ?? resolvePeriod(90);
+    return { from: range.from, to: range.to };
+  });
   const [sport, setSport] = useState('all');
   const [metric, setMetric] = useState<Metric>('distanceKm');
   const [loading, setLoading] = useState(!initialData);
@@ -55,9 +65,11 @@ export function Dashboard({
   const active = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const load = useCallback(
-    async (period: number) => {
+    async (period: DashboardPeriod) => {
       if (demo) {
         setData(demoData(period));
+        setVisible(10);
+        setError('');
         setLoading(false);
         return;
       }
@@ -68,7 +80,7 @@ export function Dashboard({
       setLoading(true);
       setError('');
       try {
-        const response = await fetch(`/api/dashboard?days=${period}`, {
+        const response = await fetch(`/api/dashboard?${periodQuery(period)}`, {
           cache: 'no-store',
           signal: controller.signal,
         });
@@ -96,15 +108,15 @@ export function Dashboard({
   );
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!demo) void load(days);
+      if (!demo) void load(selectedPeriod);
     }, 0);
     return () => {
       clearTimeout(timer);
       active.current?.abort();
     };
-  }, [days, demo, load]);
-  function period(value: number) {
-    setDays(value);
+  }, [selectedPeriod, demo, load]);
+  function period(value: DashboardPeriod) {
+    setSelectedPeriod(value);
     setSport('all');
     setVisible(10);
     if (demo) void load(value);
@@ -115,9 +127,7 @@ export function Dashboard({
         sport === 'all' || (sport === 'running' ? isRunning(a.sportType) : a.sportType === sport),
     ) ?? [];
   const stats =
-    data && sport !== 'all'
-      ? aggregate(matching, data.weekly[0]?.week ?? data.fetchedAt, data.fetchedAt)
-      : data;
+    data && sport !== 'all' ? aggregate(matching, data.range.from, data.range.to) : data;
   const cachedUntil = data ? new Date(data.cacheExpiresAt).getTime() : 0;
   return (
     <>
@@ -156,7 +166,7 @@ export function Dashboard({
             <button
               className="button secondary"
               onClick={() => {
-                if (Date.now() >= retryAt) void load(days);
+                if (Date.now() >= retryAt) void load(selectedPeriod);
               }}
               disabled={loading}
               aria-label="Actualiser les statistiques"
@@ -182,8 +192,8 @@ export function Dashboard({
             ].map(([value, label]) => (
               <button
                 key={value}
-                aria-pressed={days === value}
-                className={days === value ? 'selected' : ''}
+                aria-pressed={selectedPeriod === value}
+                className={selectedPeriod === value ? 'selected' : ''}
                 disabled={loading}
                 onClick={() => period(Number(value))}
               >
@@ -210,6 +220,47 @@ export function Dashboard({
             </select>
           </label>
         </div>
+        <form
+          className="date-range-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            try {
+              resolvePeriod(dateInputs);
+            } catch (error) {
+              setError(error instanceof Error ? error.message : 'Choisis des dates valides.');
+              return;
+            }
+            setError('');
+            period({ ...dateInputs });
+          }}
+        >
+          <div className="date-range-fields">
+            <label>
+              Du
+              <input
+                type="date"
+                required
+                min="1970-01-01"
+                value={dateInputs.from}
+                onChange={(e) => setDateInputs((v) => ({ ...v, from: e.target.value }))}
+              />
+            </label>
+            <label>
+              Au
+              <input
+                type="date"
+                required
+                min={dateInputs.from || '1970-01-01'}
+                value={dateInputs.to}
+                onChange={(e) => setDateInputs((v) => ({ ...v, to: e.target.value }))}
+              />
+            </label>
+            <button className="button secondary" type="submit" disabled={loading}>
+              Appliquer
+            </button>
+          </div>
+          <span className="date-range-note">Dates incluses</span>
+        </form>
         {error && (
           <div className="notice error" role="alert">
             {error}
@@ -271,7 +322,11 @@ export function Dashboard({
                   <p>
                     {k.value} <small>{k.unit}</small>
                   </p>
-                  <span className="kpi-note">Sur les {days} derniers jours</span>
+                  <span className="kpi-note">
+                    {typeof selectedPeriod === 'number'
+                      ? `Sur les ${data.days} derniers jours`
+                      : `Du ${data.range.from.split('-').reverse().join('/')} au ${data.range.to.split('-').reverse().join('/')}`}
+                  </span>
                 </div>
               ))}
             </div>
@@ -496,7 +551,7 @@ export function Dashboard({
           !loading && (
             <div className="empty-state">
               <h2>Les données n’ont pas pu être chargées.</h2>
-              <button className="button secondary" onClick={() => void load(days)}>
+              <button className="button secondary" onClick={() => void load(selectedPeriod)}>
                 Réessayer
               </button>
             </div>

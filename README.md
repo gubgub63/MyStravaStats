@@ -11,7 +11,7 @@
 - Connexion directe à Strava, sans compte ni mot de passe supplémentaire.
 - Distance, dénivelé positif, temps en mouvement et nombre d’activités.
 - Graphique hebdomadaire : distance, D+ ou temps ; répartition du temps par sport.
-- Périodes de 3 mois, 6 mois et 1 an, filtres par sport, sorties récentes.
+- Périodes de 3 mois, 6 mois et 1 an, ou dates de début et de fin personnalisées (incluses), filtres par sport, sorties récentes.
 - Course et trail : allure et vitesse pondérées, plus longue sortie, plus grand D+, allure effort estimée.
 - Session chiffrée, cache privé de dix minutes, déconnexion et révocation de l’accès.
 - Interface responsive, navigation clavier, valeurs des graphiques disponibles dans un tableau.

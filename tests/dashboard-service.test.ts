@@ -77,4 +77,40 @@ describe('dashboard service', () => {
     expect(mocks.getActivities).toHaveBeenCalledTimes(1);
     expect(mocks.refreshAccessToken).not.toHaveBeenCalled();
   });
+  it('filters inclusive local dates and separates caches for custom ranges', async () => {
+    const { loadDashboard } = await import('@/lib/dashboard/service');
+    mocks.getActivities.mockResolvedValue({
+      activities: [
+        {
+          ...activity,
+          id: 1,
+          start_date: '2024-01-01T23:30:00Z',
+          start_date_local: '2024-01-02T01:30:00Z',
+        },
+        {
+          ...activity,
+          id: 2,
+          start_date: '2024-01-02T23:30:00Z',
+          start_date_local: '2024-01-03T01:30:00Z',
+        },
+        {
+          ...activity,
+          id: 3,
+          start_date: '2024-01-01T00:30:00Z',
+          start_date_local: '2023-12-31T22:30:00Z',
+        },
+      ],
+      partial: false,
+    });
+    const range = { from: '2024-01-01', to: '2024-01-02' };
+    const data = await loadDashboard(session, range);
+    expect(data.recentActivities.map((a) => a.id)).toEqual([1]);
+    expect(data.weekly).toHaveLength(1);
+    expect(data.range).toEqual(range);
+    await loadDashboard(session, range);
+    expect(mocks.getActivities).toHaveBeenCalledTimes(1);
+    const other = await loadDashboard(session, { from: '2024-01-03', to: '2024-01-03' });
+    expect(other.recentActivities.map((a) => a.id)).toEqual([2]);
+    expect(mocks.getActivities).toHaveBeenCalledTimes(2);
+  });
 });

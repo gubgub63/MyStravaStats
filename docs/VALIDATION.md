@@ -11,7 +11,7 @@ Vérifications effectuées le 6 octobre 2026. Ce document distingue les comporte
 - `/dashboard` redirige vers l’accueil sans session ; `/api/dashboard` répond 401.
 - Réponses privées en `private, no-store`, CSP avec nonce et en-têtes de sécurité présents sur l’aperçu hébergé.
 - Cookie chiffré/authentifié, rotation des tokens et scopes validés dans les tests avec réponses Strava simulées.
-- 36 tests : unités, semaines locales, OAuth, sessions, pagination, erreurs API, CSRF, révocation, isolation du cache, purge après invalidation et renouvellement après 401.
+- 45 tests : bornes inclusives des périodes personnalisées, filtrage par date locale, cache par dates, unités, semaines locales, OAuth, sessions, pagination, erreurs API, CSRF, révocation, isolation du cache, purge après invalidation et renouvellement après 401.
 - Lint, TypeScript et build de production réussis ; premier pipeline GitHub exécuté avec succès.
 - Aucun secret de session dans les fichiers JavaScript frontend examinés ; `.env.local` ignoré par Git et absent de l’export de déploiement.
 - Aucune base de données ni stockage permanent des activités.
