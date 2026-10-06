@@ -1,15 +1,17 @@
-# Contribuer
+# Contributing
 
-Merci de contribuer à myStats. Ouvre une issue pour décrire un changement important, puis une pull request avec son objectif et les vérifications effectuées.
+Open an issue to discuss a substantial change, or send a pull request for a small fix. Include a short description of the change and how you checked it.
+
+## Local development
+
+Follow [Strava setup](docs/setup.md) to connect a real account. For UI work, `/demo` uses sample data and needs no credentials.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-`/demo` fonctionne sans identifiants Strava. Les instructions OAuth figurent dans le README.
-
-Avant une pull request :
+Before submitting a pull request:
 
 ```sh
 npm run lint
@@ -18,6 +20,12 @@ npm run test
 npm run build
 ```
 
-Conserve l’architecture sans base de données et l’authentification Strava exclusivement. Aucun token ne doit atteindre les composants React, les logs, un cache public ou le stockage JavaScript du navigateur. Les nouveaux calculs doivent utiliser les helpers d’unités et respecter les dates locales des activités.
+## Project conventions
 
-Pour les captures et fixtures, utilise uniquement des données fictives. Ne joins jamais de `.env.local`, cookie, identifiant OAuth réel ou activité privée.
+Keep authentication Strava-only and preserve the design without a database. OAuth tokens must stay out of React, browser storage, logs and public caches.
+
+Use the shared unit helpers for new metrics. Activity dates and weekly aggregates must respect the activity's local calendar date. Document custom calculations and distinguish them from Strava metrics.
+
+Use fictional data in screenshots and fixtures. Never include `.env.local`, session cookies, real OAuth credentials or private activity data in a commit or issue.
+
+The app interface is currently in French. Keep UI text consistent unless the change adds a complete translation flow.
