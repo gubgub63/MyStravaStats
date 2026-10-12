@@ -12,9 +12,10 @@ export async function GET(request: Request) {
   const store = await cookies();
   const sealed = store.get(STATE_COOKIE)?.value;
   store.set(STATE_COOKIE, '', { ...cookieOptions, maxAge: 0 });
-  const base = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
+  let base = new URL(request.url).origin;
   try {
     const config = env();
+    base = config.NEXT_PUBLIC_APP_URL;
     const payload = sealed
       ? await unsealData<{ state?: string }>(sealed, { password: config.SESSION_SECRET, ttl: 600 })
       : {};

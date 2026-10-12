@@ -47,9 +47,11 @@ const sportNames: Record<string, string> = {
 const sportLabel = (sport: string) => sportNames[sport] ?? sport;
 export function Dashboard({
   demo = false,
+  publicPreview = false,
   initialData,
 }: {
   demo?: boolean;
+  publicPreview?: boolean;
   initialData?: DashboardData;
 }) {
   const router = useRouter();
@@ -142,9 +144,20 @@ export function Dashboard({
       <main id="main" className="container dashboard-main">
         {demo && (
           <div className="demo-banner">
-            <span>Aperçu interactif · Toutes les données sont fictives.</span>
-            <a href="/api/auth/strava">
-              Afficher mes activités <ArrowRight size={14} />
+            <span>
+              {publicPreview
+                ? 'Aperçu public · Données fictives. Installe myStats pour connecter ton Strava.'
+                : 'Aperçu interactif · Toutes les données sont fictives.'}
+            </span>
+            <a
+              href={
+                publicPreview
+                  ? 'https://github.com/gubgub63/MyStravaStats/blob/main/docs/self-hosting.md'
+                  : '/api/auth/strava'
+              }
+            >
+              {publicPreview ? 'Installer myStats' : 'Afficher mes activités'}{' '}
+              <ArrowRight size={14} />
             </a>
           </div>
         )}
@@ -525,7 +538,9 @@ export function Dashboard({
                           <a
                             href={
                               demo
-                                ? '/api/auth/strava'
+                                ? publicPreview
+                                  ? '#sorties'
+                                  : '/api/auth/strava'
                                 : `https://www.strava.com/activities/${a.id}`
                             }
                             target={demo ? undefined : '_blank'}

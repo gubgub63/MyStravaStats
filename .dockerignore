@@ -1,0 +1,11 @@
+node_modules
+.next
+.pages-build
+.git
+.vercel
+.playwright-mcp
+.env*
+coverage
+docs/screenshots
+*.tsbuildinfo
+.DS_Store

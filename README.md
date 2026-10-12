@@ -4,6 +4,8 @@
   A personal dashboard for your Strava activities.
 </p>
 
+[Try the public preview](https://gubgub63.github.io/MyStravaStats/) — interactive dashboard with fictional data, hosted on GitHub Pages. Connecting your own Strava account requires the server version below.
+
 <p align="center">
   <a href="https://github.com/gubgub63/MyStravaStats/actions/workflows/ci.yml"><img src="https://github.com/gubgub63/MyStravaStats/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license" /></a>
@@ -13,6 +15,7 @@
   <a href="#getting-started">Getting started</a> ·
   <a href="docs/setup.md">Strava setup</a> ·
   <a href="docs/deployment.md">Deployment</a> ·
+  <a href="docs/self-hosting.md">Self-hosting</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -73,7 +76,11 @@ Restart the development server and select **Connect with Strava** on the homepag
 
 The repository includes a [GitHub Actions workflow](.github/workflows/ci.yml) that validates the app and deploys it to Vercel. See the [deployment guide](docs/deployment.md) for environment variables and repository secrets.
 
-A server runtime is required for OAuth and private API calls. GitHub Pages cannot host this app.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fgubgub63%2FMyStravaStats&project-name=mystats&repository-name=mystats&env=STRAVA_CLIENT_ID,STRAVA_CLIENT_SECRET,SESSION_SECRET,STRAVA_REDIRECT_URI,NEXT_PUBLIC_APP_URL&envDescription=Configure%20your%20Strava%20application%20and%20the%20production%20HTTPS%20domain&envLink=https%3A%2F%2Fgithub.com%2Fgubgub63%2FMyStravaStats%2Fblob%2Fmain%2Fdocs%2Fdeployment.md)
+
+A server runtime is required for OAuth and private API calls. GitHub Pages hosts the separate static demo; it cannot run the full Strava connection.
+
+For your own server, use the included Docker image, Compose files and optional HTTPS proxy. See the [self-hosting guide](docs/self-hosting.md). Proposed trail-specific additions are listed in the [trail roadmap](docs/trail-roadmap.md).
 
 ## Data and privacy
 

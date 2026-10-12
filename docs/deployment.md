@@ -1,6 +1,16 @@
 # Deployment
 
-myStats needs a server for OAuth, encrypted cookies and authenticated Strava requests. It runs on Vercel or another compatible Node.js host. GitHub Pages only serves static files and cannot run these routes.
+myStats needs a server for OAuth, encrypted cookies and authenticated Strava requests. It runs on Vercel or another compatible Node.js host. GitHub Pages serves the separate public demo and cannot run these server routes.
+
+To host on your own server with Docker or Node.js, see [Self-hosting](self-hosting.md).
+
+## Public demo on GitHub Pages
+
+The public demo is at [gubgub63.github.io/MyStravaStats](https://gubgub63.github.io/MyStravaStats/). It uses fictional activities and supports the same charts, date/sport filters and themes. There is no Strava login, OAuth cookie or private activity data on this site.
+
+The [Pages workflow](../.github/workflows/pages.yml) builds and publishes it on pushes to `main`. In the repository's **Settings → Pages**, select **GitHub Actions** as the source. No Strava or hosting secrets are required for this deployment.
+
+`npm run build:pages` creates an isolated static export in `.pages-build/out`. The build copies the dashboard and static page templates, excludes API routes, proxy and `.env*`, and sets the repository base path. The normal `npm run build` continues to build the full server app. Set `PAGES_BASE_PATH` when deploying a fork under a different repository path; the workflow obtains it from GitHub Pages automatically.
 
 [Vercel Hobby](https://vercel.com/docs/plans/hobby) provides free hosting for personal, non-commercial projects within its usage limits. GitHub hosts the source and runs the included deployment workflow.
 
@@ -17,6 +27,10 @@ myStats needs a server for OAuth, encrypted cookies and authenticated Strava req
 
 4. Update the Strava application's **Authorization Callback Domain** to that domain, without the protocol or path. Temporary preview domains are not suitable for the production callback.
 5. Redeploy after changing environment variables.
+
+Use the project's production domain for public access. Under Vercel's Standard Protection, generated deployment URLs may require a Vercel login even when the production domain is public. Check **Settings → Deployment Protection** and verify the chosen public domain in a browser without a Vercel session. A public GitHub repository alone does not make a hosted app public. See [Vercel's deployment protection documentation](https://vercel.com/docs/deployment-protection).
+
+The CLI's `vercel deploy --temporary` can provide a public preview without signing in. This is a temporary deployment with a claim deadline, not permanent hosting. Claim it in your Vercel account or import the repository for a stable production domain.
 
 ## Configure GitHub Actions
 

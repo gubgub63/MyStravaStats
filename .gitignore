@@ -1,5 +1,6 @@
 node_modules/
 .next/
+.pages-build/
 out/
 .env*
 !.env.example

@@ -3,6 +3,7 @@
 .git
 .playwright-mcp
 .next
+.pages-build
 node_modules
 coverage
 *.tsbuildinfo

@@ -33,6 +33,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 describe('Strava transport', () => {
   it.each([
@@ -128,6 +129,16 @@ describe('Strava transport', () => {
   });
 });
 describe('routes', () => {
+  it('uses the validated runtime app origin for OAuth callback redirects', async () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://old-build.example');
+    const { GET } = await import('@/app/api/auth/strava/callback/route');
+    const response = await GET(new Request('https://proxy.example/api/auth/strava/callback'));
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'http://localhost:3000/?error=OAUTH_INVALID_STATE',
+    );
+    expect(response.headers.get('cache-control')).toContain('no-store');
+  });
   it('returns no private information without session', async () => {
     const { GET } = await import('@/app/api/dashboard/route');
     const response = await GET(new Request('http://localhost:3000/api/dashboard'));

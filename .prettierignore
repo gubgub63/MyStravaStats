@@ -1,5 +1,6 @@
 node_modules
 .next
+.pages-build
 .playwright-mcp
 package-lock.json
 .env.local
