@@ -140,7 +140,7 @@ export function Dashboard({
   const cachedUntil = data ? new Date(data.cacheExpiresAt).getTime() : 0;
   return (
     <>
-      <Header dashboard />
+      <Header dashboard publicPreview={publicPreview} />
       <main id="main" className="container dashboard-main">
         {demo && (
           <div className="demo-banner">

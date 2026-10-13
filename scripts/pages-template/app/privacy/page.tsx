@@ -4,7 +4,7 @@ export const metadata = { title: 'Confidentialité de l’aperçu' };
 export default function PrivacyPage() {
   return (
     <>
-      <Header />
+      <Header publicPreview />
       <main id="main" className="container prose">
         <h1>Confidentialité de l’aperçu.</h1>
         <p>

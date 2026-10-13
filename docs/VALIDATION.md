@@ -28,6 +28,17 @@ Vérifications effectuées le 6 octobre 2026. Ce document distingue les comporte
 
 L’aperçu temporaire valide le déploiement et le rendu avec des données fictives. Il ne prouve pas une connexion Strava réelle et ne remplace pas l’hébergement permanent. Les tests OAuth simulés ne prouvent pas la validité des secrets ou du domaine de rappel.
 
+## Saison trail locale — 13 octobre 2026
+
+- 62 tests passent, dont 16 nouveaux tests couvrant temps multi-jours, exclusions des prédictions (DNF, dates futures, résultats anciens), extrapolation, segments GPX séparés, bruit d’altitude, sauts GPS, imports CSV, égalités de classement, calibration sans scores inventés, sauvegardes et adaptateurs publics.
+- Lint, TypeScript, build de production et export statique GitHub Pages réussis. L’aperçu statique conserve sa navigation et n’annonce pas de route saison nécessitant un serveur.
+- Navigateur : ajout d’un objectif UTLAC, récupération et analyse de son GPX réel, persistance après rechargement, saisie d’un résultat, courbe de progression, import CSV de référence, export/restauration JSON et rejet d’une sauvegarde invalide sans perte des données actuelles.
+- Affichages clair/sombre et mobile 390 px inspectés. Débordement du tableau de résultats corrigé ; largeur finale de page 390 px. Aucun avertissement ou erreur JavaScript observé.
+- Les cinq formats UTLAC renvoient leurs données depuis l’organisateur. Recherche UTMB réelle vérifiée ; import public de profil vérifié par l’API locale. Les scores individuels non publics sont conservés comme absents.
+- Redirection OAuth Strava vérifiée vers Strava avec callback `http://localhost:3000/api/auth/strava/callback`. Autorisation avec le compte personnel, renouvellement et chargement des activités réelles non vérifiés pendant ce travail.
+- ITRA reste en saisie manuelle avec lien vers la recherche officielle. Catalogue connecté limité à UTLAC ; les autres courses sont saisies manuellement. Les estimations mathématiques sont documentées et non validées sur un jeu de courses indépendant.
+- Données utilisées pour la vérification uniquement : aucun objectif ou résultat de test conservé dans l’espace local du navigateur de vérification.
+
 ## Auto-hébergement et accès public — 12 octobre 2026
 
 - Ajout d’un build standalone, d’un Dockerfile sans secrets de build, de deux configurations Compose et d’un proxy HTTPS Caddy optionnel.

@@ -34,6 +34,7 @@ _Screenshots use sample data. The app interface is currently in French._
 - Custom date ranges, sport filters and recent activities.
 - Light and dark themes, with layouts for desktop and mobile.
 - Strava sign-in, encrypted session cookies and a private ten-minute cache.
+- Local trail season workspace at `/season`: race goals, public UTMB profile lookup and results import, progression charts, UTLAC organizer data and GPX analysis, elapsed-time scenarios, historical ranking CSV calibration and JSON backups. See [trail season and calculation limits](docs/trail-season.md).
 
 No database or additional account required. Built with Next.js, TypeScript, Tailwind CSS and Recharts.
 
