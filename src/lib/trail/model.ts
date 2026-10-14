@@ -1,4 +1,5 @@
-import type { HistoricalField, TrackAnalysis, TrailRace, TrailResult } from './types';
+import type { HistoricalField, TrackAnalysis, TrailRace, TrailResult, TrailProfile } from './types';
+import { comparableHistory } from './history';
 
 export const effortKm = (distanceKm: number, ascentM: number) => distanceKm + ascentM / 100;
 export function parseDuration(value: string): number | null {
@@ -95,6 +96,61 @@ export function estimateField(seconds: number, field: HistoricalField) {
     utmb: estimate('utmb'),
     itra: estimate('itra'),
   };
+}
+
+export type LevelEstimate = {
+  value: number;
+  low: number | null;
+  high: number | null;
+  method: 'historical' | 'personal';
+  references: number;
+};
+/** A personal equivalent level, not an official race score or a future general index. */
+export function estimateLevels(
+  race: TrailRace,
+  results: TrailResult[],
+  profile: TrailProfile,
+  today?: string,
+): Record<'utmb' | 'itra', LevelEstimate | null> {
+  const empty = { utmb: null, itra: null };
+  if (!race.targetSeconds || !Number.isFinite(race.targetSeconds) || race.targetSeconds <= 0)
+    return empty;
+  const prediction = predictTime(race, results, today);
+  const field = comparableHistory(race) ? estimateField(race.targetSeconds, race.field) : null;
+  const clamp = (value: number) => Math.max(0, Math.min(1000, Math.round(value)));
+  const estimate = (key: 'utmb' | 'itra'): LevelEstimate | null => {
+    const calibrated = field?.[key];
+    if (calibrated !== null && calibrated !== undefined)
+      return {
+        value: calibrated,
+        low: null,
+        high: null,
+        method: 'historical',
+        references: race.field.filter(
+          (row) =>
+            row[key] !== null &&
+            row[key]! > 0 &&
+            Math.abs(Math.log(row.seconds / race.targetSeconds!)) < Math.log(1.5),
+        ).length,
+      };
+    const baseline = profile[key];
+    if (
+      !prediction ||
+      baseline === null ||
+      !Number.isFinite(baseline) ||
+      baseline <= 0 ||
+      baseline > 1000
+    )
+      return null;
+    return {
+      value: clamp((baseline * prediction.central) / race.targetSeconds!),
+      low: clamp((baseline * prediction.low) / race.targetSeconds!),
+      high: clamp((baseline * prediction.high) / race.targetSeconds!),
+      method: 'personal',
+      references: prediction.references,
+    };
+  };
+  return { utmb: estimate('utmb'), itra: estimate('itra') };
 }
 
 export type TrackPoint = { lat: number; lon: number; elevation: number; segment: number };

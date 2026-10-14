@@ -15,7 +15,14 @@ import {
   type TrailRace,
   type TrailResult,
 } from '@/lib/trail/types';
-import { fetchCatalogRace, fetchRunner, searchRunners } from '@/lib/trail/providers';
+import {
+  fetchCatalogRace,
+  fetchRunner,
+  searchRunners,
+  fetchHistoricalField,
+} from '@/lib/trail/providers';
+import { comparableHistory } from '@/lib/trail/history';
+import { uniqueExactRunner } from '@/lib/trail/identity';
 
 const race: TrailRace = {
   id: 'target',
@@ -32,6 +39,10 @@ const race: TrailRace = {
   track: null,
   field: [],
   fieldLabel: '',
+  fieldSource: '',
+  fieldEdition: null,
+  fieldDistanceKm: null,
+  fieldAscentM: null,
   cutoffHours: null,
   organizerTerrain: '',
   sourceCheckedAt: '',
@@ -159,6 +170,23 @@ describe('historical fields', () => {
   });
 });
 describe('backup validation', () => {
+  it('opens older season backups without losing goals when historical metadata is absent', () => {
+    const oldRace = { ...race } as Partial<TrailRace>;
+    delete oldRace.fieldSource;
+    delete oldRace.fieldEdition;
+    delete oldRace.fieldDistanceKm;
+    delete oldRace.fieldAscentM;
+    const restored = seasonSchema.parse({ ...emptySeason(), races: [oldRace] });
+    expect(restored.races[0].name).toBe(race.name);
+    expect(restored.races[0].fieldSource).toBe('');
+    expect(restored.races[0].fieldDistanceKm).toBeNull();
+  });
+  it('blocks automatic ranking comparisons after distance or ascent changes', () => {
+    const reference = { ...race, fieldDistanceKm: 40, fieldAscentM: 2000 };
+    expect(comparableHistory(reference)).toBe(true);
+    expect(comparableHistory({ ...reference, distanceKm: 60 })).toBe(false);
+    expect(comparableHistory({ ...reference, ascentM: 3000 })).toBe(false);
+  });
   it('round-trips seasons and rejects unsafe links and non-finite numbers', () => {
     const season = { ...emptySeason(), races: [race], results: [result] };
     expect(seasonSchema.parse(JSON.parse(JSON.stringify(season)))).toEqual(season);
@@ -167,7 +195,82 @@ describe('backup validation', () => {
     expect(seasonSchema.safeParse({ ...season, version: 2 }).success).toBe(false);
   });
 });
+describe('automatic runner lookup', () => {
+  it('only imports one exact full-name match, even when fuzzy search returns other runners', () => {
+    const exact = { fullname: 'Alice TRAIL', id: 1 };
+    expect(
+      uniqueExactRunner([exact, { fullname: 'Alice MONTAGNE', id: 2 }], 'Alice', 'Trail'),
+    ).toEqual(exact);
+    expect(uniqueExactRunner([{ fullname: 'Alice MONTAGNE' }], 'Alice', 'Trail')).toBeNull();
+    expect(uniqueExactRunner([exact, { ...exact, id: 3 }], 'Alice', 'Trail')).toBeNull();
+  });
+  it('normalizes accents and spacing without importing a profile for an incomplete name', () => {
+    expect(uniqueExactRunner([{ fullname: 'Élodie TRAIL' }], 'elodie', ' TRAIL ')?.fullname).toBe(
+      'Élodie TRAIL',
+    );
+    expect(uniqueExactRunner([{ fullname: 'Alice TRAIL' }], 'Alice', '')).toBeNull();
+  });
+});
 describe('public provider adapters', () => {
+  it('rejects incomplete or repeated ranking pages and imports every finisher without inventing scores', async () => {
+    const html = (
+      offset: number,
+      entries: Array<{ rank: number | null; time: string; index: null }>,
+      count = 4,
+    ) =>
+      new Response(
+        `<script id="__NEXT_DATA__">${JSON.stringify({ props: { pageProps: { name: 'UTLAC 120K 2026', distance: '122.00', elevationGain: 6209, results: { limit: 2, offset, nbHits: count, results: entries.map((r) => ({ ...r, runnerUri: `runner-${r.rank}` })) } } } })}</script>`,
+      );
+    const json = (
+      offset: number,
+      entries: Array<{ rank: number | null; time: string; index: null }>,
+    ) =>
+      new Response(
+        JSON.stringify({
+          limit: 2,
+          offset,
+          nbHits: 4,
+          results: entries.map((r) => ({ ...r, runnerUri: `runner-${r.rank}` })),
+        }),
+      );
+    const firstRows = [
+      { rank: 1, time: '16:26:17', index: null },
+      { rank: 2, time: '16:30:08', index: null },
+    ];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce(html(0, firstRows)).mockResolvedValueOnce(json(2, firstRows)),
+    );
+    await expect(fetchHistoricalField('utlac-120')).rejects.toThrow('changé');
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(html(0, firstRows))
+        .mockResolvedValueOnce(json(0, firstRows))
+        .mockResolvedValueOnce(json(2, [])),
+    );
+    await expect(fetchHistoricalField('utlac-120')).rejects.toThrow('incomplet');
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(html(0, firstRows))
+      .mockResolvedValueOnce(json(0, firstRows))
+      .mockResolvedValueOnce(
+        json(2, [
+          { rank: 3, time: '16:37:27', index: null },
+          { rank: null, time: 'DNF', index: null },
+        ]),
+      );
+    vi.stubGlobal('fetch', fetch);
+    const data = await fetchHistoricalField('utlac-120');
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(data.field).toHaveLength(3);
+    expect(data.field.every((row) => row.utmb === null && row.itra === null)).toBe(true);
+    expect(estimateField(17 * 3600, data.field)!.rank).toBe(4);
+    await expect(fetchHistoricalField('http://localhost/admin')).rejects.toThrow(
+      'Aucun classement',
+    );
+  });
   it('extracts organizer data without mixing ITRA qualification points with a performance score', async () => {
     vi.stubGlobal(
       'fetch',

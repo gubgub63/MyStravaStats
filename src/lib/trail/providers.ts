@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { catalog, type RaceCatalogItem } from './catalog';
 import { parseDuration } from './model';
 import { resultSchema, type TrailResult } from './types';
+import { historicalRaces, historicalResponseSchema } from './history';
 
 // Only public, fixed provider origins. Never follow a user-supplied URL.
 export async function publicText(url: string, maxBytes = 8 * 1024 * 1024) {
@@ -145,4 +146,91 @@ export async function fetchRunner(uri: string) {
     results,
     checkedAt: new Date().toISOString(),
   };
+}
+
+const rankingPageSchema = z.object({
+  name: z.string(),
+  distance: z.coerce.number().positive(),
+  elevationGain: z.number().nonnegative(),
+  results: z.object({
+    limit: z.number().int().positive(),
+    offset: z.number().int().nonnegative(),
+    nbHits: z.number().int().positive().max(5000),
+    results: z.array(
+      z.object({
+        runnerUri: z.string().min(1),
+        rank: z.number().int().positive().nullable(),
+        time: z.string().nullable(),
+        index: z.number().min(0).max(1000).nullable(),
+      }),
+    ),
+  }),
+});
+type HistoricalResponse = z.infer<typeof historicalResponseSchema>;
+const historicalCache = new Map<string, { data: HistoricalResponse; expires: number }>();
+export async function fetchHistoricalField(id: string): Promise<HistoricalResponse> {
+  const reference = historicalRaces[id];
+  if (!reference)
+    throw new Error(
+      'Aucun classement automatique vérifié pour cette course. Importe un CSV de référence.',
+    );
+  const cached = historicalCache.get(id);
+  if (cached && cached.expires > Date.now()) return cached.data;
+  const source = `https://utmb.world/it/utmb-index/races/${reference.uri}`;
+  async function page(number: number) {
+    const html = await publicText(`${source}?page=${number}`);
+    const raw = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)?.[1];
+    if (!raw) throw new Error('Le classement public est indisponible. Réessaie ou importe le CSV.');
+    return rankingPageSchema.parse(JSON.parse(raw).props.pageProps);
+  }
+  const first = await page(1);
+  const { nbHits } = first.results;
+  const rows: z.infer<typeof rankingPageSchema>['results']['results'] = [];
+  if (first.results.offset !== 0) throw new Error('Pagination du classement incohérente.');
+  // A larger public API page avoids brittle website pagination; null ranks are non-finishers.
+  for (let offset = 0, pages = 0; offset < nbHits;) {
+    if (++pages > 200) throw new Error('Le classement dépasse la limite de pagination.');
+    const query = new URLSearchParams({
+      lang: 'it',
+      offset: String(offset),
+      limit: '500',
+      gender: '',
+    });
+    const next = rankingPageSchema.shape.results.parse(
+      JSON.parse(
+        await publicText(`https://api.utmb.world/races/${reference.uri}/results?${query}`),
+      ),
+    );
+    if (next.offset !== offset || next.nbHits !== nbHits)
+      throw new Error('Le classement a changé pendant la lecture. Réessaie.');
+    rows.push(...next.results);
+    offset += next.limit;
+  }
+  if (rows.length !== nbHits)
+    throw new Error(
+      'Le classement reçu est incomplet. Aucun classement partiel n’a été enregistré.',
+    );
+  const ranked = rows.filter((r) => r.rank !== null);
+  if (new Set(ranked.map((r) => r.runnerUri)).size !== ranked.length)
+    throw new Error('La pagination contient des résultats répétés.');
+  const field = ranked.map((r) => {
+    const seconds = r.time ? parseDuration(r.time) : null;
+    if (!seconds)
+      throw new Error(
+        'Un temps publié est illisible. Aucun classement partiel n’a été enregistré.',
+      );
+    return { seconds, utmb: r.index, itra: null };
+  });
+  const data = historicalResponseSchema.parse({
+    field,
+    source,
+    year: reference.year,
+    date: reference.date,
+    label: `${first.name} · classement complet`,
+    distanceKm: first.distance,
+    ascentM: first.elevationGain,
+    fetchedAt: new Date().toISOString(),
+  });
+  historicalCache.set(id, { data, expires: Date.now() + 3600000 });
+  return data;
 }

@@ -39,6 +39,21 @@ L’aperçu temporaire valide le déploiement et le rendu avec des données fict
 - ITRA reste en saisie manuelle avec lien vers la recherche officielle. Catalogue connecté limité à UTLAC ; les autres courses sont saisies manuellement. Les estimations mathématiques sont documentées et non validées sur un jeu de courses indépendant.
 - Données utilisées pour la vérification uniquement : aucun objectif ou résultat de test conservé dans l’espace local du navigateur de vérification.
 
+## Espacements et projections — 14 octobre 2026
+
+- Sélecteurs natifs conservant leur navigation clavier, avec indicateur à 12 px du bord et 40 px réservés au texte. Correction appliquée au filtre des sports, à la métrique hebdomadaire et aux champs de saison ; retour à l’apparence native en contraste forcé.
+- Formulaires de saison en une colonne sous 520 px, contrôles de 44 px et texte de 16 px sur mobile, grilles à minimum nul, ordre visuel des onglets et de l’année aligné sur l’ordre du clavier.
+- Classement UTLAC 120 de 2026 récupéré intégralement depuis les données publiques UTMB : 149 finishers après exclusion des non-finishers ; un objectif de 17 h se place au quatrième rang historique. Source et édition affichées ; scores non publics conservés absents.
+- Synchronisation UTMB automatique sur nom complet exactement unique, avec sélection manuelle pour les homonymes. Recherche, import, projection personnelle et conservation de l’objectif existant vérifiés dans le navigateur.
+- Le contrôle mécanique Impeccable des fichiers d’interface modifiés ne signale aucun défaut. Vérification du rendu des filtres et de la saison sur ordinateur et mobile ; pas de débordement horizontal observé.
+
+## Index partagé et niveaux estimés — 14 octobre 2026
+
+- L’index UTMB enregistré est affiché dans le tableau de bord ; les changements de stockage, le retour au premier plan et les mises à jour de saison rafraîchissent le profil. Le profil Strava propre au compte est prioritaire, avec repli sur le profil local uniquement si son nom complet correspond. Les identités différentes et les sauvegardes invalides sont exclues.
+- Ajout d’un niveau personnel équivalent lorsque les scores de course historiques sont absents : index du fournisseur × temps personnel central projeté / temps visé. Les valeurs et fourchettes sont bornées ; les références insuffisantes restent explicites. Aucune conversion UTMB vers ITRA ; accès direct au champ ITRA lorsqu’il manque.
+- Tests de référence pour monotonie au temps cible, conservation du niveau au temps prédit, priorité aux scores publiés, exclusion des parcours historiques différents, bornes extrêmes, absence de référence, isolation des profils et erreurs de stockage.
+- Vérification dans le navigateur : index général partagé, niveau estimé visible pour l’objectif existant, ouverture directe du formulaire ITRA. Le niveau personnel est un modèle indicatif non validé, distinct du score et de l’index officiels.
+
 ## Auto-hébergement et accès public — 12 octobre 2026
 
 - Ajout d’un build standalone, d’un Dockerfile sans secrets de build, de deux configurations Compose et d’un proxy HTTPS Caddy optionnel.

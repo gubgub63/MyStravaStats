@@ -33,6 +33,7 @@ const WeeklyChart = dynamic(() => import('./charts'), {
   ssr: false,
   loading: () => <div className="chart-container skeleton" />,
 });
+const RunnerIndex = dynamic(() => import('./runner-index'), { ssr: false });
 const sportNames: Record<string, string> = {
   Run: 'Course à pied',
   TrailRun: 'Trail',
@@ -147,7 +148,7 @@ export function Dashboard({
             <span>
               {publicPreview
                 ? 'Aperçu public · Données fictives. Installe myStats pour connecter ton Strava.'
-                : 'Aperçu interactif · Toutes les données sont fictives.'}
+                : 'Aperçu interactif · Les activités affichées sont fictives.'}
             </span>
             <a
               href={
@@ -169,6 +170,9 @@ export function Dashboard({
                 : 'Ton tableau de bord.'}
             </h1>
             <p className="muted">Un peu de recul sur tes dernières sorties.</p>
+            {!publicPreview && (demo || data) && (
+              <RunnerIndex athlete={demo ? undefined : data?.athlete} demo={demo} />
+            )}
           </div>
           <div className="dashboard-actions">
             {data?.athlete.profile?.startsWith('https://') && (

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
@@ -29,6 +29,7 @@ import {
   type Season,
   type TrailRace,
   type TrailResult,
+  type TrailProfile,
 } from '@/lib/trail/types';
 import {
   difficulty,
@@ -36,13 +37,17 @@ import {
   durationInput,
   effortKm,
   estimateField,
+  estimateLevels,
   parseDuration,
   predictTime,
 } from '@/lib/trail/model';
 import { parseFieldCsv, parseGpx } from '@/lib/trail/import';
 import { catalog, type RaceCatalogItem } from '@/lib/trail/catalog';
 import type { RunnerMatch } from '@/lib/trail/providers';
+import { uniqueExactRunner } from '@/lib/trail/identity';
+import { comparableHistory, historicalRaces, historicalResponseSchema } from '@/lib/trail/history';
 import { number, pace } from '@/lib/utils/units';
+import { seasonStorageKey, TRAIL_STORAGE_EVENT } from '@/lib/trail/storage';
 
 const ProgressChart = dynamic(() => import('./trail-charts').then((m) => m.ProgressChart), {
   ssr: false,
@@ -156,6 +161,7 @@ export function TrailSeason({
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState('');
   const [view, setView] = useState<View>('plan');
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const [year, setYear] = useState(() => Number(today().slice(0, 4)) + 1);
   const [selected, setSelected] = useState('');
   const [modal, setModal] = useState<'race' | 'result' | null>(null);
@@ -168,7 +174,16 @@ export function TrailSeason({
     null,
   );
   const backupRef = useRef<HTMLInputElement>(null);
-  const key = `mystats.trail.v1.${athlete?.id ?? 'local'}`;
+  const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lookupGeneration = useRef(0);
+  useEffect(
+    () => () => {
+      if (lookupTimer.current) clearTimeout(lookupTimer.current);
+      lookupGeneration.current++;
+    },
+    [],
+  );
+  const key = seasonStorageKey(athlete?.id);
   useEffect(() => {
     try {
       const stored = localStorage.getItem(key);
@@ -189,25 +204,32 @@ export function TrailSeason({
       });
     }
   }, [key]);
-  function commit(next: Season, success = '') {
-    currentSeason.current = next;
-    setSeason(next);
-    try {
-      localStorage.setItem(key, JSON.stringify(next));
-      setNotice(success);
-    } catch {
-      setNotice(
-        'Les changements restent dans cette page mais n’ont pas pu être sauvegardés. Exporte une sauvegarde avant de fermer.',
+  const commit = useCallback(
+    (next: Season, success = '') => {
+      currentSeason.current = next;
+      setSeason(next);
+      try {
+        localStorage.setItem(key, JSON.stringify(next));
+        window.dispatchEvent(new Event(TRAIL_STORAGE_EVENT));
+        setNotice(success);
+      } catch {
+        setNotice(
+          'Les changements restent dans cette page mais n’ont pas pu être sauvegardés. Exporte une sauvegarde avant de fermer.',
+        );
+      }
+    },
+    [key],
+  );
+  const updateRace = useCallback(
+    (patch: Partial<TrailRace> & { id: string }, success = '') => {
+      const latest = currentSeason.current;
+      commit(
+        { ...latest, races: latest.races.map((r) => (r.id === patch.id ? { ...r, ...patch } : r)) },
+        success,
       );
-    }
-  }
-  function updateRace(patch: Partial<TrailRace> & { id: string }, success = '') {
-    const latest = currentSeason.current;
-    commit(
-      { ...latest, races: latest.races.map((r) => (r.id === patch.id ? { ...r, ...patch } : r)) },
-      success,
-    );
-  }
+    },
+    [commit],
+  );
   const races = season.races
     .filter((r) => r.date.startsWith(String(year)))
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -237,6 +259,8 @@ export function TrailSeason({
   }
   async function findRunner(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (lookupTimer.current) clearTimeout(lookupTimer.current);
+    const requestId = ++lookupGeneration.current;
     setMatches([]);
     setNotice('');
     setBusy('runner');
@@ -246,24 +270,37 @@ export function TrailSeason({
       lastname: String(data.get('lastname') ?? '').trim(),
     };
     setLookupName(name);
+    const latest = currentSeason.current;
+    commit({ ...latest, profile: { ...latest.profile, ...name } });
     try {
       const body = await getJson(`/api/trail/runners?${new URLSearchParams(name)}`);
+      if (requestId !== lookupGeneration.current) return;
+      const exact = uniqueExactRunner(body.runners as RunnerMatch[], name.firstname, name.lastname);
+      if (exact) {
+        await importRunner(exact, name, requestId);
+        return;
+      }
       setMatches(body.runners);
       if (!body.runners.length)
         setNotice(
           'Aucun profil trouvé. Essaie une autre orthographe ou ouvre la recherche officielle.',
         );
     } catch (e) {
-      setNotice(messageOf(e));
+      if (requestId === lookupGeneration.current) setNotice(messageOf(e));
     } finally {
-      setBusy('');
+      if (requestId === lookupGeneration.current) setBusy('');
     }
   }
-  async function importRunner(match: RunnerMatch) {
+  async function importRunner(
+    match: RunnerMatch,
+    name = lookupName,
+    requestId = ++lookupGeneration.current,
+  ) {
     setBusy('runner');
     setNotice('');
     try {
       const body = await getJson(`/api/trail/runners?uri=${encodeURIComponent(match.uri)}`);
+      if (requestId !== lookupGeneration.current) return;
       const latest = currentSeason.current;
       const incoming = new Map<string, TrailResult>(
         body.results.map((r: TrailResult) => [r.id, r]),
@@ -279,7 +316,7 @@ export function TrailSeason({
         ...latest,
         profile: {
           ...latest.profile,
-          ...(lookupName ?? {}),
+          ...(name ?? {}),
           utmb: body.utmb,
           utmbUrl: body.source,
           checkedAt: body.checkedAt,
@@ -292,9 +329,9 @@ export function TrailSeason({
       );
       setMatches([]);
     } catch (e) {
-      setNotice(messageOf(e));
+      if (requestId === lookupGeneration.current) setNotice(messageOf(e));
     } finally {
-      setBusy('');
+      if (requestId === lookupGeneration.current) setBusy('');
     }
   }
   if (!ready)
@@ -497,10 +534,20 @@ export function TrailSeason({
                 key={race.id}
                 race={race}
                 results={season.results}
+                profile={season.profile}
                 busy={busy}
                 setBusy={setBusy}
                 notify={setNotice}
                 update={updateRace}
+                addResult={() => {
+                  setEditResult(null);
+                  setModal('result');
+                }}
+                findRunner={() => setView('profile')}
+                editIndexes={() => {
+                  setProfileEditorOpen(true);
+                  setView('profile');
+                }}
                 edit={() => {
                   setEditRace(race);
                   setModal('race');
@@ -690,11 +737,25 @@ export function TrailSeason({
               <span className="eyebrow">LES CHIFFRES QUI TE SUIVENT</span>
               <h2>Ton profil coureur.</h2>
               <p className="trail-helper">
-                Retrouve ton profil UTMB par nom, puis confirme ton identité avant la
-                synchronisation.
+                Renseigne ton prénom et ton nom : tes résultats remontent automatiquement si un seul
+                profil correspond exactement. En cas d’homonymes, choisis le bon profil.
               </p>
               <form
                 onSubmit={findRunner}
+                onChange={(e) => {
+                  if (lookupTimer.current) clearTimeout(lookupTimer.current);
+                  lookupGeneration.current++;
+                  setBusy('');
+                  const form = e.currentTarget;
+                  const values = new FormData(form);
+                  if (
+                    String(values.get('firstname') ?? '').trim().length >= 2 &&
+                    String(values.get('lastname') ?? '').trim().length >= 2
+                  )
+                    lookupTimer.current = setTimeout(() => {
+                      if (form.isConnected) form.requestSubmit();
+                    }, 900);
+                }}
                 className="trail-form"
                 key={`lookup-${season.profile.firstname}-${season.profile.lastname}`}
               >
@@ -781,7 +842,11 @@ export function TrailSeason({
                   Recherche officielle ITRA <ArrowUpRight size={13} />
                 </a>
               </div>
-              <details className="trail-method">
+              <details
+                className="trail-method"
+                open={profileEditorOpen}
+                onToggle={(e) => setProfileEditorOpen(e.currentTarget.open)}
+              >
                 <summary>Compléter mon profil et mon index ITRA</summary>
                 <p>
                   L’import ITRA automatique est indisponible. Relève ton index sur ton profil
@@ -987,7 +1052,7 @@ export function TrailSeason({
               },
               'Résultat enregistré.',
             );
-            setYear(Number(r.date.slice(0, 4)));
+            if (view === 'progress') setYear(Number(r.date.slice(0, 4)));
             setModal(null);
           }}
           remove={
@@ -1016,21 +1081,95 @@ function RaceDetail({
   busy,
   setBusy,
   notify,
+  addResult,
+  findRunner,
+  profile,
+  editIndexes,
 }: {
   race: TrailRace;
   results: TrailResult[];
+  profile: TrailProfile;
   update: (r: Partial<TrailRace> & { id: string }, message?: string) => void;
   edit: () => void;
   remove: () => void;
   busy: string;
   setBusy: (s: string) => void;
   notify: (s: string) => void;
+  addResult: () => void;
+  findRunner: () => void;
+  editIndexes: () => void;
 }) {
   const [target, setTarget] = useState(durationInput(race.targetSeconds));
   const gpxRef = useRef<HTMLInputElement>(null),
     csvRef = useRef<HTMLInputElement>(null);
   const prediction = predictTime(race, results, today());
-  const field = race.targetSeconds ? estimateField(race.targetSeconds, race.field) : null;
+  const levels = estimateLevels(race, results, profile, today());
+  const compatible = comparableHistory(race);
+  const field =
+    race.targetSeconds && compatible ? estimateField(race.targetSeconds, race.field) : null;
+  const supportsHistory = !!historicalRaces[race.catalogId ?? ''];
+  const [historyLoading, setHistoryLoading] = useState(supportsHistory && !race.field.length);
+  const [historyError, setHistoryError] = useState('');
+  const [historyAttempt, setHistoryAttempt] = useState(0);
+  const rankingRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (!supportsHistory || race.field.length) return;
+    const controller = new AbortController();
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) {
+        setHistoryLoading(true);
+        setHistoryError('');
+      }
+    });
+    void fetch(`/api/trail/history?id=${encodeURIComponent(race.catalogId ?? '')}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.message ?? 'Classement indisponible.');
+        const data = historicalResponseSchema.parse(body);
+        if (
+          !comparableHistory({
+            distanceKm: race.distanceKm,
+            ascentM: race.ascentM,
+            fieldDistanceKm: data.distanceKm,
+            fieldAscentM: data.ascentM,
+          })
+        )
+          throw new Error(
+            'Le parcours de référence diffère de ton objectif. Importe un classement comparable.',
+          );
+        if (!controller.signal.aborted) {
+          setHistoryLoading(false);
+          update({
+            id: race.id,
+            field: data.field,
+            fieldLabel: data.label,
+            fieldSource: data.source,
+            fieldEdition: data.year,
+            fieldDistanceKm: data.distanceKm,
+            fieldAscentM: data.ascentM,
+          });
+        }
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setHistoryError(messageOf(error));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setHistoryLoading(false);
+      });
+    return () => controller.abort();
+  }, [
+    race.id,
+    race.catalogId,
+    race.field.length,
+    race.distanceKm,
+    race.ascentM,
+    supportsHistory,
+    update,
+    historyAttempt,
+  ]);
   const index = difficulty(race);
   async function importTrack(file?: File) {
     setBusy('gpx');
@@ -1261,10 +1400,59 @@ function RaceDetail({
                 <p>
                   {field
                     ? `${field.lowRank}–${field.highRank}e pour ±10 % de temps · ${field.finishers} finishers`
-                    : 'Importe un classement de référence'}
+                    : historyLoading
+                      ? 'Lecture du classement UTLAC…'
+                      : 'Classement de référence manquant'}
                 </p>
               </div>
             </div>
+            {historyLoading && (
+              <p className="trail-helper" role="status">
+                Récupération de toutes les pages du classement officiel…
+              </p>
+            )}
+            {historyError && (
+              <div className="trail-warning" role="status">
+                <p>{historyError}</p>
+                <button className="text-button" onClick={() => setHistoryAttempt((n) => n + 1)}>
+                  Réessayer
+                </button>
+              </div>
+            )}
+            {!compatible && (
+              <p className="trail-warning">
+                Le parcours a changé depuis le chargement du classement. Importe une référence
+                correspondant à la distance et au D+ de cet objectif.
+              </p>
+            )}
+            {field && (
+              <p className="trail-helper">
+                Position avec ton objectif de {duration(race.targetSeconds)} dans{' '}
+                {race.fieldEdition ? `l’édition ${race.fieldEdition}` : 'le classement importé'} :{' '}
+                {field.rank > field.finishers
+                  ? `après les ${field.finishers} finishers`
+                  : `${field.rank === 1 ? '1er' : `${field.rank}e`} sur ${field.finishers} finishers`}
+                . Le peloton de {race.date.slice(0, 4)} pourra être différent.{' '}
+                {race.fieldSource && (
+                  <a href={race.fieldSource} target="_blank" rel="noreferrer">
+                    Voir la source ↗
+                  </a>
+                )}
+              </p>
+            )}
+            {!field && !historyLoading && (
+              <button
+                className="text-button trail-reference-action"
+                onClick={() => {
+                  if (rankingRef.current) {
+                    rankingRef.current.open = true;
+                    rankingRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }}
+              >
+                Ajouter le classement de référence <ArrowRight size={14} />
+              </button>
+            )}
             {race.cutoffHours && race.targetSeconds > race.cutoffHours * 3600 && (
               <p className="trail-warning">
                 Ce temps dépasse la barrière finale de {duration(race.cutoffHours * 3600)}.
@@ -1272,15 +1460,59 @@ function RaceDetail({
             )}
             <div className="trail-score-estimates">
               <span>
-                Scores de course estimés <small>· approximation</small>
+                Le niveau associé à ton objectif <small>· estimation indicative</small>
               </span>
-              <strong>
-                UTMB {field?.utmb ?? '—'} <span>/</span> ITRA {field?.itra ?? '—'}
-              </strong>
+              <div className="trail-level-grid">
+                {(['utmb', 'itra'] as const).map((key) => {
+                  const estimate = levels[key];
+                  return (
+                    <div className="trail-level-metric" key={key}>
+                      <span>
+                        {estimate?.method === 'historical' ? 'Score' : 'Niveau'} {key.toUpperCase()}{' '}
+                        estimé
+                      </span>
+                      {estimate ? (
+                        <>
+                          <strong>
+                            {estimate.value}
+                            <small> / 1 000</small>
+                          </strong>
+                          {estimate.method === 'personal' ? (
+                            <p>
+                              Point de départ : index {profile[key]}. Fourchette {estimate.low}–
+                              {estimate.high}, indicative.
+                            </p>
+                          ) : (
+                            <p>Calibré sur {estimate.references} scores de course publiés.</p>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <strong className="trail-level-missing">
+                            {!profile[key] ? 'Index à renseigner' : 'Résultat de référence requis'}
+                          </strong>
+                          <button
+                            className="text-button"
+                            onClick={!profile[key] ? editIndexes : addResult}
+                          >
+                            {!profile[key]
+                              ? `Renseigner mon index ${key.toUpperCase()}`
+                              : 'Ajouter un résultat'}{' '}
+                            <ArrowRight size={13} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <p className="trail-helper">
-              Trois scores connus proches du temps cible sont nécessaires par fournisseur. Le futur
-              index général ne peut pas être déduit de ce seul temps.
+              {levels.utmb?.method === 'personal' || levels.itra?.method === 'personal'
+                ? 'Le niveau personnel utilise ton index actuel et la projection de tes résultats récents pour le temps visé. '
+                : ''}
+              Ces estimations ne prédisent pas ton futur index général officiel. L’index ITRA doit
+              provenir de ton profil ITRA ; la recherche UTMB ne le fournit pas.
             </p>
           </>
         )}
@@ -1290,17 +1522,30 @@ function RaceDetail({
         <strong>
           {prediction
             ? `${duration(prediction.low)} – ${duration(prediction.high)}`
-            : 'Ajoute tes résultats pour commencer.'}
+            : 'Il manque une course de référence personnelle.'}
         </strong>
         <p>
           {prediction
             ? `Centre : ${duration(prediction.central)} · ${prediction.references} course(s) récente(s). ${prediction.extrapolated ? 'Forte extrapolation de distance : marge élargie.' : 'Marge minimale de ±20 %, indicative.'}`
-            : 'La projection utilise jusqu’à trois courses terminées au cours des trois dernières années.'}
+            : 'Le GPX décrit le parcours ; ton objectif décrit le temps souhaité. Pour estimer ton temps probable, ajoute au moins un résultat terminé avec distance, D+ et temps écoulé, datant de moins de trois ans. La connexion Strava n’importe pas automatiquement tes résultats de compétition.'}
         </p>
+        {!prediction && (
+          <div className="trail-file-actions">
+            <button className="button secondary" onClick={addResult}>
+              <Plus size={14} /> Ajouter un résultat
+            </button>
+            <button className="text-button" onClick={findRunner}>
+              Importer mes résultats UTMB <ArrowRight size={14} />
+            </button>
+          </div>
+        )}
       </div>
-      <details className="trail-method">
+      <details ref={rankingRef} className="trail-method">
         <summary>Classement de référence & estimation des scores</summary>
         <p>
+          {supportsHistory
+            ? 'Le classement complet de l’UTLAC 120 de 2026 est récupéré automatiquement. Tu peux le remplacer par ton propre fichier. '
+            : ''}
           Importe tous les finishers d’une édition comparable de cette même course. Le rang est une
           position dans ce classement passé, pas une prévision du futur peloton. Une liste partielle
           donne un classement partiel.
@@ -1334,7 +1579,15 @@ function RaceDetail({
               if (file.size > 5 * 1024 * 1024) throw new Error('Le CSV dépasse 5 Mo.');
               const field = parseFieldCsv(await file.text());
               update(
-                { id: race.id, field, fieldLabel: file.name },
+                {
+                  id: race.id,
+                  field,
+                  fieldLabel: file.name,
+                  fieldSource: '',
+                  fieldEdition: null,
+                  fieldDistanceKm: null,
+                  fieldAscentM: null,
+                },
                 `${field.length} finishers importés.`,
               );
             } catch (e) {
@@ -1345,17 +1598,19 @@ function RaceDetail({
         {!!race.field.length && (
           <p>
             {race.fieldLabel} · {race.field.length} finishers{' '}
-            <button
-              className="text-button"
-              onClick={() =>
-                update(
-                  { id: race.id, field: [], fieldLabel: '' },
-                  'Classement de référence retiré.',
-                )
-              }
-            >
-              Retirer
-            </button>
+            {!race.fieldSource && (
+              <button
+                className="text-button"
+                onClick={() =>
+                  update(
+                    { id: race.id, field: [], fieldLabel: '' },
+                    'Classement de référence retiré.',
+                  )
+                }
+              >
+                Retirer
+              </button>
+            )}
           </p>
         )}
       </details>
@@ -1381,6 +1636,15 @@ function RaceDetail({
           Scores estimés = médiane(temps historique × score publié) / temps cible, limité à 1 000,
           sur au moins trois finishers entre temps cible / 1,5 et temps cible × 1,5. Il s’agit d’un
           étalonnage local, pas des formules officielles UTMB/ITRA.
+        </p>
+        <p>
+          En l’absence de scores historiques suffisants, le niveau personnel est calculé séparément
+          pour chaque fournisseur : index actuel × temps central de la projection personnelle ÷
+          temps visé. La fourchette applique la même formule aux bornes de la projection. Valeurs
+          limitées à 0–1 000. Cet indicateur suppose que ton index actuel représente ton niveau sur
+          le parcours et que la performance varie inversement au temps ; il est indicatif, non
+          validé et ne calcule ni un score officiel ni une mise à jour de l’index général. Un index
+          UTMB n’est jamais converti en index ITRA.
         </p>
         <p>
           Terrain : {race.terrain === null ? 'non renseigné' : terrainNames[race.terrain]} ·{' '}
@@ -1535,6 +1799,10 @@ function RaceEditor({
               track: race?.track ?? null,
               field: race?.field ?? [],
               fieldLabel: race?.fieldLabel ?? '',
+              fieldSource: race?.fieldSource ?? '',
+              fieldEdition: race?.fieldEdition ?? null,
+              fieldDistanceKm: race?.fieldDistanceKm ?? null,
+              fieldAscentM: race?.fieldAscentM ?? null,
               cutoffHours: optionalNumber(d, 'cutoffHours'),
               organizerTerrain: race?.organizerTerrain ?? loaded?.terrainDescription ?? '',
               sourceCheckedAt: race?.sourceCheckedAt ?? loaded?.checkedAt ?? '',
