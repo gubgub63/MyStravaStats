@@ -3,6 +3,8 @@ import { readSession, deleteSession } from '@/lib/auth/session';
 import { api, checkOrigin, privateHeaders } from '@/lib/auth/http';
 import { purgeDashboard } from '@/lib/dashboard/service';
 import { deauthorize } from '@/lib/strava/client';
+import { databaseEnabled } from '@/lib/server/db';
+import { revokeAthlete } from '@/lib/server/accounts';
 import { appUrl } from '@/lib/env';
 export async function POST(request: Request) {
   return api(async () => {
@@ -14,7 +16,7 @@ export async function POST(request: Request) {
     } catch {
       failed = true;
     } finally {
-      if (s) purgeDashboard(s);
+      if (s) { purgeDashboard(s); if (databaseEnabled()) await revokeAthlete(s.athlete.id); }
       await deleteSession();
     }
     return NextResponse.redirect(

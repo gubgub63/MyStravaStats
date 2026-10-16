@@ -1,6 +1,6 @@
 # Self-hosting
 
-myStats runs without Vercel or a database. It needs a Node.js server and HTTPS for Strava sign-in. This repository includes a standalone Docker image and an optional Caddy reverse proxy with automatic certificates.
+myStats runs without Vercel. Local web-only mode can run without a database; the server Compose stack includes PostgreSQL for iPhone and season synchronization. Configure the additional database password and encryption key in the [iOS/sync guide](ios-and-sync.md) before using that stack. It needs a Node.js server and HTTPS for Strava sign-in. This repository includes a standalone Docker image and an optional Caddy reverse proxy with automatic certificates.
 
 ## Configure your server
 

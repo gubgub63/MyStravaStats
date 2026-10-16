@@ -33,10 +33,11 @@ _Screenshots use sample data. The app interface is currently in French._
 - Running and trail stats: average pace, speed, longest run and highest elevation gain.
 - Custom date ranges, sport filters and recent activities.
 - Light and dark themes, with layouts for desktop and mobile.
+- Native iOS 17+ application in the same MIT monorepo, offline trail planning and explicit conflict resolution when syncing with the web.
 - Strava sign-in, encrypted session cookies and a private ten-minute cache.
 - Local trail season workspace at `/season`: race goals, public UTMB profile lookup and results import, progression charts, UTLAC organizer data and GPX analysis, elapsed-time scenarios, historical ranking CSV calibration and JSON backups. See [trail season and calculation limits](docs/trail-season.md).
 
-No database or additional account required. Built with Next.js, TypeScript, Tailwind CSS and Recharts.
+The local web application needs no database or additional account. Native iPhone and synchronized seasons use PostgreSQL on your own server. Built with Next.js, TypeScript, SwiftUI and Swift Charts. See [iPhone installation](apps/ios/README.md) and [synchronized hosting](docs/ios-and-sync.md).
 
 <details>
 <summary>Mobile screenshot</summary>
@@ -85,7 +86,7 @@ For your own server, use the included Docker image, Compose files and optional H
 
 ## Data and privacy
 
-Strava tokens stay on the server and in an encrypted HttpOnly cookie. Activities are cached in memory for ten minutes and are never written to a database. The app requests read-only access and does not fetch GPS tracks.
+In local web-only mode Strava tokens stay in an encrypted HttpOnly cookie. With PostgreSQL enabled they are encrypted on the server; browsers receive an opaque HttpOnly session and iPhones retain only a myStats session in Keychain. Trail seasons synchronize only after explicit import of existing local data. Activities are cached in memory for ten minutes and are never written to a database. The app requests read-only access and does not fetch GPS tracks.
 
 Up to 1,000 activities are loaded per period. Larger results are marked as partial. The cache is local to each server instance.
 

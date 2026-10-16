@@ -9,3 +9,13 @@ out/
 coverage/
 *.tsbuildinfo
 .DS_Store
+
+# Native iOS build and signing state
+.build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.ipa
+*.dSYM/
+
+.next-ios/

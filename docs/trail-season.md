@@ -15,15 +15,13 @@ Ouvre `/season` avec le serveur Next.js. La page est indépendante de la connexi
    Tu peux remplacer la référence par le classement complet d’une édition comparable de la même course. CSV UTF-8 avec séparateur virgule ou point-virgule : `time,utmb,itra,status`. Temps H:MM:SS ; scores de course facultatifs ; `status=dnf`, `dns` ou `dsq` exclut un non-finisher. Le modèle téléchargé ne contient que les en-têtes, aucune donnée fictive.
 
    Les places historiques ne nécessitent pas les résultats du coureur. À l’inverse, la projection personnelle nécessite au moins une course terminée récente avec temps, distance et D+ ; la connexion Strava ne crée pas ces résultats de compétition. Les actions d’ajout et d’import UTMB sont accessibles directement depuis l’état vide de projection.
-8. **Ma progression** affiche les résultats de la saison sélectionnée, leur vitesse effort et les scores publiés ou saisis. Les résultats terminés sans temps et les abandons sont exclus de la vitesse ; les abandons sont exclus des courbes et prédictions.
-
 L’index UTMB général enregistré apparaît aussi dans le tableau de bord et suit les changements de profil dans le navigateur. Le tableau de bord connecté privilégie le profil de son espace Strava ; il peut lire l’index de l’espace local si prénom et nom correspondent exactement. Aucun résultat d’un autre coureur n’est partagé. L’aperçu local distingue le profil réel des activités de démonstration ; l’aperçu public statique reste entièrement fictif.
 
 ## Conservation
 
 Les profils, objectifs, notes, résultats, classements importés et résumés GPX sont enregistrés dans `localStorage`, versionnés et validés avec Zod. Ils restent dans ce navigateur, pour cet hôte et ce port. Le stockage local et celui de chaque identifiant Strava sont distincts. La déconnexion ne supprime pas une saison enregistrée. Exporte avant de changer d’espace et restaure la sauvegarde dans l’espace souhaité.
 
-Les exports JSON permettent une sauvegarde ou un transfert ; la restauration remplace l’espace courant et rejette les fichiers invalides. Pas de base de données ni synchronisation entre appareils. Les GPX importés sont analysés dans le navigateur ; seul un résumé de 600 points environ est conservé, pas le XML complet. La recherche UTMB transmet le nom recherché au service UTMB via le serveur ; les réponses ne sont pas mises dans un cache public. Les adaptateurs ne visitent que les domaines fixes UTMB et UTLAC et n’utilisent pas de cookies de comptes UTMB/ITRA.
+Les exports JSON permettent une sauvegarde ou un transfert ; la restauration remplace l’espace courant et rejette les fichiers invalides. Avec PostgreSQL configuré, la saison peut être synchronisée entre le web et l’iPhone : import local explicite, révision vérifiée à chaque sauvegarde et résolution des conflits sans écrasement automatique. Sans base configurée, le mode local reste autonome. Voir [iOS et synchronisation](ios-and-sync.md). Les GPX importés sont analysés dans le navigateur ; seul un résumé de 600 points environ est conservé, pas le XML complet. La recherche UTMB transmet le nom recherché au service UTMB via le serveur ; les réponses ne sont pas mises dans un cache public. Les adaptateurs ne visitent que les domaines fixes UTMB et UTLAC et n’utilisent pas de cookies de comptes UTMB/ITRA.
 
 ## Modèle myStats v1
 

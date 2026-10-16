@@ -6,6 +6,25 @@ services:
     env_file: .env.production
     expose:
       - '3000'
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mystats}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mystats}
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mystats}
+      POSTGRES_DB: ${POSTGRES_DB:-mystats}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
   proxy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -23,5 +42,6 @@ services:
       app:
         condition: service_healthy
 volumes:
+  postgres_data:
   caddy_data:
   caddy_config:

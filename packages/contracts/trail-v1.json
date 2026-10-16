@@ -1,0 +1,131 @@
+{
+  "today": "2026-10-14",
+  "season": {
+    "version": 1,
+    "profile": {
+      "firstname": "Test",
+      "lastname": "Runner",
+      "utmb": 600,
+      "itra": null,
+      "utmbUrl": "",
+      "itraUrl": "",
+      "checkedAt": ""
+    },
+    "results": [
+      {
+        "id": "reference",
+        "name": "Course de référence",
+        "date": "2026-06-01",
+        "distanceKm": 50,
+        "ascentM": 2500,
+        "seconds": 36000,
+        "status": "finished",
+        "rank": null,
+        "finishers": null,
+        "utmb": null,
+        "itra": null,
+        "source": "",
+        "terrain": 1
+      }
+    ],
+    "races": [
+      {
+        "id": "target",
+        "name": "Objectif test",
+        "date": "2027-05-08",
+        "distanceKm": 100,
+        "ascentM": 6000,
+        "priority": "A",
+        "notes": "",
+        "source": "",
+        "fieldLabel": "",
+        "targetSeconds": 61200,
+        "terrain": 2,
+        "catalogId": null,
+        "track": null,
+        "field": [],
+        "fieldSource": "",
+        "fieldEdition": null,
+        "fieldDistanceKm": null,
+        "fieldAscentM": null,
+        "cutoffHours": null,
+        "organizerTerrain": "",
+        "sourceCheckedAt": ""
+      }
+    ]
+  },
+  "expected": {
+    "effort": 160,
+    "difficulty": 84,
+    "paceSecondsPerKm": 612,
+    "prediction": 84921.35215824985,
+    "low": 55198.8789028624,
+    "high": 114643.8254136373,
+    "level": 833,
+    "lowLevel": 541,
+    "highLevel": 1000
+  },
+  "points": [
+    {
+      "lat": 45.0,
+      "lon": 9,
+      "elevation": 100,
+      "segment": 0
+    },
+    {
+      "lat": 45.001,
+      "lon": 9,
+      "elevation": 110,
+      "segment": 0
+    },
+    {
+      "lat": 45.002,
+      "lon": 9,
+      "elevation": 120,
+      "segment": 0
+    },
+    {
+      "lat": 45.003,
+      "lon": 9,
+      "elevation": 130,
+      "segment": 0
+    },
+    {
+      "lat": 45.004,
+      "lon": 9,
+      "elevation": 140,
+      "segment": 0
+    }
+  ],
+  "trackExpected": {
+    "distanceKm": 0.44477970657823496,
+    "ascentM": 40,
+    "descentM": 0,
+    "slopeIndex": 0
+  },
+  "field": [
+    {
+      "seconds": 58000,
+      "utmb": 650,
+      "itra": null
+    },
+    {
+      "seconds": 61000,
+      "utmb": 620,
+      "itra": null
+    },
+    {
+      "seconds": 65000,
+      "utmb": 590,
+      "itra": null
+    }
+  ],
+  "fieldExpected": {
+    "rank": 3,
+    "lowRank": 1,
+    "highRank": 4,
+    "finishers": 3,
+    "utmb": 618
+  },
+  "csv": "time;utmb;itra;status\n16:06:40;650;;finished\n16:56:40;620;;finished\n18:03:20;590;;finished\n;;;dnf\n"
+}

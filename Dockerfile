@@ -20,8 +20,11 @@ RUN addgroup --system --gid 1001 nextjs \
     && adduser --system --uid 1001 --ingroup nextjs nextjs
 COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nextjs /app/db ./db
+COPY --from=builder --chown=nextjs:nextjs /app/scripts/db ./scripts/db
+COPY --from=builder --chown=nextjs:nextjs /app/scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 USER nextjs
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD node -e "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-CMD ["node", "server.js"]
+    CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+CMD ["sh", "scripts/docker-entrypoint.sh"]

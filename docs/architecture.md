@@ -1,6 +1,6 @@
 # Architecture
 
-Next.js App Router, TypeScript, React, Tailwind CSS, Recharts, Zod and iron-session. No database, local account system or persistent activity storage.
+Next.js App Router, TypeScript, React, Tailwind CSS, Recharts, Zod and iron-session. No separate account/password or persistent activity storage. Optional PostgreSQL supports revocable sessions and season synchronization with the native SwiftUI app; see [iOS and synchronization](ios-and-sync.md).
 
 ```text
 Browser → Strava OAuth → server callback
@@ -11,6 +11,8 @@ Browser → Strava OAuth → server callback
 ```
 
 ## Authentication
+
+The cookie-only behavior below applies when `DATABASE_URL` is unset. With PostgreSQL, credentials are encrypted at rest, both browser and native sessions are opaque and revocable, and provider refreshes use an athlete row lock. [Native/API contract](../packages/contracts/README.md).
 
 - A random OAuth state is sealed in a ten-minute cookie, checked at the callback and removed after use.
 - Access and refresh tokens are stored in an authenticated, encrypted iron-session cookie. React never receives them.
@@ -33,7 +35,7 @@ Strava quota headers are monitored. Exhausted quotas or a 429 response block fur
 
 ### Serverless limits
 
-Caches, quota guards and refresh coalescing are local to an instance and disappear when it restarts. Different instances can duplicate requests or refresh tokens concurrently. This design does not provide a global cache or lock.
+Caches, quota guards and refresh coalescing are local to an instance and disappear when it restarts. Different instances can duplicate requests; cookie-only mode can also refresh tokens concurrently. PostgreSQL mode serializes credential refreshes with a shared row lock. Activity caches and quota guards remain per-instance.
 
 A copied session cookie cannot be revoked individually without server-side state. Revoking the application's access through Strava invalidates its OAuth credentials. Other instances' cached statistics can remain until their ten-minute expiry.
 

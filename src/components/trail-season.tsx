@@ -19,6 +19,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
+import { SeasonSync, markSeasonDirty } from './season-sync';
 import { Header, Footer, Mountains } from './shell';
 import {
   seasonSchema,
@@ -48,10 +49,8 @@ import { uniqueExactRunner } from '@/lib/trail/identity';
 import { comparableHistory, historicalRaces, historicalResponseSchema } from '@/lib/trail/history';
 import { number, pace } from '@/lib/utils/units';
 import { seasonStorageKey, TRAIL_STORAGE_EVENT } from '@/lib/trail/storage';
+import { recordProfileIndexes } from '@/lib/trail/index-history';
 
-const ProgressChart = dynamic(() => import('./trail-charts').then((m) => m.ProgressChart), {
-  ssr: false,
-});
 const ElevationChart = dynamic(() => import('./trail-charts').then((m) => m.ElevationChart), {
   ssr: false,
 });
@@ -59,7 +58,7 @@ const RouteDrawing = dynamic(() => import('./trail-charts').then((m) => m.RouteD
   ssr: false,
 });
 type Athlete = { id: number; firstname?: string; lastname?: string };
-type View = 'plan' | 'progress' | 'profile';
+type View = 'plan' | 'profile';
 const terrainNames = [
   'Roulant',
   'Sentier facile',
@@ -167,7 +166,6 @@ export function TrailSeason({
   const [modal, setModal] = useState<'race' | 'result' | null>(null);
   const [editRace, setEditRace] = useState<TrailRace | null>(null);
   const [editResult, setEditResult] = useState<TrailResult | null>(null);
-  const [metric, setMetric] = useState<'speed' | 'utmb' | 'itra'>('speed');
   const [busy, setBusy] = useState('');
   const [matches, setMatches] = useState<RunnerMatch[]>([]);
   const [lookupName, setLookupName] = useState<{ firstname: string; lastname: string } | null>(
@@ -188,11 +186,27 @@ export function TrailSeason({
     try {
       const stored = localStorage.getItem(key);
       if (stored) {
-        const data = seasonSchema.parse(JSON.parse(stored));
+        let data = seasonSchema.parse(JSON.parse(stored));
+        let saveFailed = false;
+        // Older backups only contain the current profile. Start observing today,
+        // without inventing historical race scores or an ITRA verification date.
+        if (!data.indexHistory.length) {
+          data = recordProfileIndexes(data, today());
+          try {
+            if (data.indexHistory.length) markSeasonDirty(key);
+            localStorage.setItem(key, JSON.stringify(data));
+          } catch {
+            saveFailed = true;
+          }
+        }
         queueMicrotask(() => {
           currentSeason.current = data;
           setSeason(data);
           setReady(true);
+          if (saveFailed)
+            setNotice(
+              'Tes données sont chargées, mais le suivi des index n’a pas pu être sauvegardé. Exporte une sauvegarde pour le conserver.',
+            );
         });
       } else queueMicrotask(() => setReady(true));
     } catch {
@@ -204,11 +218,31 @@ export function TrailSeason({
       });
     }
   }, [key]);
+  useEffect(() => {
+    const refreshLocal = (event: StorageEvent) => {
+      if (event.key !== key || !event.newValue) return;
+      try {
+        const next = seasonSchema.parse(JSON.parse(event.newValue));
+        currentSeason.current = next;
+        setSeason(next);
+        window.dispatchEvent(new Event(TRAIL_STORAGE_EVENT));
+      } catch {
+        /* Do not replace the current document with a corrupt tab update. */
+      }
+    };
+    window.addEventListener('storage', refreshLocal);
+    return () => window.removeEventListener('storage', refreshLocal);
+  }, [key]);
   const commit = useCallback(
-    (next: Season, success = '') => {
+    (next: Season, success = '', fromServer = false) => {
+      if (fromServer && !next.indexHistory.length) {
+        next = recordProfileIndexes(next, today());
+        if (next.indexHistory.length) fromServer = false;
+      }
       currentSeason.current = next;
       setSeason(next);
       try {
+        if (!fromServer) markSeasonDirty(key);
         localStorage.setItem(key, JSON.stringify(next));
         window.dispatchEvent(new Event(TRAIL_STORAGE_EVENT));
         setNotice(success);
@@ -234,9 +268,6 @@ export function TrailSeason({
     .filter((r) => r.date.startsWith(String(year)))
     .sort((a, b) => a.date.localeCompare(b.date));
   const race = races.find((r) => r.id === selected) ?? races[0];
-  const results = season.results
-    .filter((r) => r.date.startsWith(String(year)))
-    .sort((a, b) => b.date.localeCompare(a.date));
   const priorities = races.filter((r) => r.priority === 'A');
   const years = [
     ...new Set([
@@ -250,7 +281,8 @@ export function TrailSeason({
   async function restore(file: File) {
     try {
       if (file.size > 15 * 1024 * 1024) throw new Error('La sauvegarde dépasse 15 Mo.');
-      const next = seasonSchema.parse(JSON.parse(await file.text()));
+      let next = seasonSchema.parse(JSON.parse(await file.text()));
+      if (!next.indexHistory.length) next = recordProfileIndexes(next, today());
       commit(next, 'Sauvegarde restaurée.');
       setSelected('');
     } catch {
@@ -312,17 +344,21 @@ export function TrailSeason({
           ? { ...fresh, itra: r.itra, terrain: r.terrain, utmb: fresh.utmb ?? r.utmb }
           : r;
       });
-      const next = seasonSchema.parse({
-        ...latest,
-        profile: {
-          ...latest.profile,
-          ...(name ?? {}),
-          utmb: body.utmb,
-          utmbUrl: body.source,
-          checkedAt: body.checkedAt,
-        },
-        results: [...merged, ...incoming.values()],
-      });
+      const next = recordProfileIndexes(
+        seasonSchema.parse({
+          ...latest,
+          profile: {
+            ...latest.profile,
+            ...(name ?? {}),
+            utmb: body.utmb,
+            utmbUrl: body.source,
+            checkedAt: body.checkedAt,
+          },
+          results: [...merged, ...incoming.values()],
+        }),
+        today(),
+        ['utmb'],
+      );
       commit(
         next,
         `${body.results.length} résultats synchronisés depuis le profil de ${body.fullname}. Les scores non publics restent vides.`,
@@ -349,22 +385,26 @@ export function TrailSeason({
       <main id="main" className="container trail-page">
         <div className="trail-heading">
           <div>
-            <div className="eyebrow">
-              <span className="trail-dot" /> TON PROCHAIN HORIZON
-            </div>
             <h1>
               Ta saison, <span>à ton rythme.</span>
             </h1>
             <p>Des résultats aux prochains sommets. Un endroit pour tout relier.</p>
           </div>
-          <Mountains className="trail-heading-mountains" />
+          <button
+            className="button trail-primary trail-heading-action"
+            onClick={() => {
+              setEditRace(null);
+              setModal('race');
+            }}
+          >
+            <Plus size={18} aria-hidden="true" /> Ajouter une course
+          </button>
         </div>
         <div className="trail-toolbar">
           <div className="trail-tabs" role="group" aria-label="Vue de la saison">
             {(
               [
                 ['plan', 'Mes objectifs', Flag],
-                ['progress', 'Ma progression', Mountain],
                 ['profile', 'Mon profil', UserRound],
               ] as const
             ).map(([id, label, Icon]) => (
@@ -374,7 +414,7 @@ export function TrailSeason({
                 aria-pressed={view === id}
                 onClick={() => setView(id)}
               >
-                <Icon size={16} />
+                <Icon size={16} aria-hidden="true" />
                 {label}
               </button>
             ))}
@@ -391,6 +431,14 @@ export function TrailSeason({
             </select>
           </label>
         </div>
+        {athlete && (
+          <SeasonSync
+            storageKey={key}
+            season={season}
+            ready={ready}
+            accept={(next) => commit(next, '', true)}
+          />
+        )}
         {notice && (
           <div className="trail-notice" role="status">
             <span>{notice}</span>
@@ -433,73 +481,196 @@ export function TrailSeason({
           </div>
         </div>
         {view === 'plan' && (
-          <div className="trail-plan">
-            <section className="trail-calendar">
-              <div className="trail-section-heading">
-                <div>
-                  <span className="eyebrow">LE FIL DE TA SAISON</span>
-                  <h2>Les rendez-vous.</h2>
+          <>
+            <details className="trail-year-map">
+              <summary className="trail-year-map-heading">
+                Calendrier {year}
+                <span>
+                  {races.length} course{races.length > 1 ? 's' : ''} au programme
+                </span>
+              </summary>
+              <div className="trail-months">
+                {Array.from({ length: 12 }, (_, month) => {
+                  const monthRaces = races.filter((r) => Number(r.date.slice(5, 7)) === month + 1);
+                  const label = new Date(year, month, 1)
+                    .toLocaleDateString('fr-FR', { month: 'short' })
+                    .replace('.', '');
+                  return (
+                    <div
+                      key={month}
+                      className={`trail-month${monthRaces.some((r) => r.id === race?.id) ? ' current' : ''}`}
+                    >
+                      <span>{label}</span>
+                      <div className="trail-month-dates">
+                        {monthRaces.length ? (
+                          monthRaces.map((r) => (
+                            <button
+                              key={r.id}
+                              aria-label={`${r.name}, ${dateLabel(r.date)}`}
+                              aria-pressed={race?.id === r.id}
+                              title={r.name}
+                              onClick={() => setSelected(r.id)}
+                            >
+                              {r.date.slice(8)}
+                              <small>{r.priority}</small>
+                            </button>
+                          ))
+                        ) : (
+                          <span className="trail-month-rest" aria-label="Aucune course">
+                            —
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+            <div className="trail-plan">
+              <section className="trail-calendar">
+                <div className="trail-section-heading">
+                  <div>
+                    <h2>
+                      Les rendez-vous<span className="trail-race-count">{races.length}</span>
+                    </h2>
+                  </div>
+                  <button
+                    className="trail-icon-button filled"
+                    aria-label="Ajouter une course"
+                    onClick={() => {
+                      setEditRace(null);
+                      setModal('race');
+                    }}
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+                <p className="trail-helper">
+                  Deux ou trois temps forts. De la place pour le chemin entre les deux.
+                </p>
+                {races.length ? (
+                  <div className="trail-race-list">
+                    {races.map((r) => (
+                      <button
+                        key={r.id}
+                        className={`trail-race-card ${race?.id === r.id ? 'selected' : ''}`}
+                        aria-pressed={race?.id === r.id}
+                        onClick={() => setSelected(r.id)}
+                      >
+                        <div className="trail-date-block">
+                          <span>
+                            {new Date(r.date + 'T12:00:00')
+                              .toLocaleDateString('fr-FR', { month: 'short' })
+                              .replace('.', '')}
+                          </span>
+                          <strong>{r.date.slice(8)}</strong>
+                        </div>
+                        <div className="trail-race-card-body">
+                          <span className={`trail-priority p-${r.priority}`}>
+                            {r.priority === 'A'
+                              ? 'Objectif principal'
+                              : r.priority === 'B'
+                                ? 'Préparation'
+                                : 'Plaisir'}
+                          </span>
+                          <h3>{r.name}</h3>
+                          <p>
+                            {number(r.distanceKm, 1)} km <span>·</span> {number(r.ascentM)} m D+
+                          </p>
+                          <div className="trail-target-line">
+                            <Flag size={12} />
+                            {r.targetSeconds ? duration(r.targetSeconds) : 'Temps cible à définir'}
+                          </div>
+                        </div>
+                        <ChevronRight size={16} />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="trail-empty-calendar">
+                    <Flag size={30} strokeWidth={1.2} />
+                    <h3>Le départ est ici.</h3>
+                    <p>
+                      Choisis ton premier rendez-vous de {year}. Tu pourras ensuite construire la
+                      suite.
+                    </p>
+                    <button
+                      className="button trail-primary"
+                      onClick={() => {
+                        setEditRace(null);
+                        setModal('race');
+                      }}
+                    >
+                      <Plus size={16} /> Ajouter une course
+                    </button>
+                  </div>
+                )}
+                <div className="trail-season-note">
+                  <span className="trail-dot" />
+                  <p>
+                    {priorities.length > 3
+                      ? 'Plus de trois objectifs principaux : pense à garder de la place pour la récupération.'
+                      : 'A · objectif principal   B · préparation   C · plaisir'}
+                  </p>
                 </div>
                 <button
-                  className="trail-icon-button filled"
-                  aria-label="Ajouter une course"
+                  className="trail-add-line"
                   onClick={() => {
                     setEditRace(null);
                     setModal('race');
                   }}
                 >
-                  <Plus size={20} />
+                  <Plus size={16} /> Un autre horizon
                 </button>
-              </div>
-              <p className="trail-helper">
-                Deux ou trois temps forts. De la place pour le chemin entre les deux.
-              </p>
-              {races.length ? (
-                <div className="trail-race-list">
-                  {races.map((r) => (
-                    <button
-                      key={r.id}
-                      className={`trail-race-card ${race?.id === r.id ? 'selected' : ''}`}
-                      aria-pressed={race?.id === r.id}
-                      onClick={() => setSelected(r.id)}
-                    >
-                      <div className="trail-date-block">
-                        <span>
-                          {new Date(r.date + 'T12:00:00')
-                            .toLocaleDateString('fr-FR', { month: 'short' })
-                            .replace('.', '')}
-                        </span>
-                        <strong>{r.date.slice(8)}</strong>
-                      </div>
-                      <div className="trail-race-card-body">
-                        <span className={`trail-priority p-${r.priority}`}>
-                          {r.priority === 'A'
-                            ? 'Objectif principal'
-                            : r.priority === 'B'
-                              ? 'Préparation'
-                              : 'Plaisir'}
-                        </span>
-                        <h3>{r.name}</h3>
-                        <p>
-                          {number(r.distanceKm, 1)} km <span>·</span> {number(r.ascentM)} m D+
-                        </p>
-                        <div className="trail-target-line">
-                          <Flag size={12} />
-                          {r.targetSeconds ? duration(r.targetSeconds) : 'Temps cible à définir'}
-                        </div>
-                      </div>
-                      <ChevronRight size={16} />
-                    </button>
-                  ))}
-                </div>
+              </section>
+              {race ? (
+                <RaceDetail
+                  key={race.id}
+                  race={race}
+                  results={season.results}
+                  profile={season.profile}
+                  busy={busy}
+                  setBusy={setBusy}
+                  notify={setNotice}
+                  update={updateRace}
+                  addResult={() => {
+                    setEditResult(null);
+                    setModal('result');
+                  }}
+                  findRunner={() => setView('profile')}
+                  editIndexes={() => {
+                    setProfileEditorOpen(true);
+                    setView('profile');
+                  }}
+                  edit={() => {
+                    setEditRace(race);
+                    setModal('race');
+                  }}
+                  remove={() => {
+                    commit(
+                      { ...season, races: season.races.filter((r) => r.id !== race.id) },
+                      'Course retirée de la saison.',
+                    );
+                    setSelected('');
+                  }}
+                />
               ) : (
-                <div className="trail-empty-calendar">
-                  <Flag size={30} strokeWidth={1.2} />
-                  <h3>Le départ est ici.</h3>
+                <section className="trail-panel trail-start-panel">
+                  <h2>
+                    Et si tu prenais
+                    <br />
+                    la direction du lac de Côme ?
+                  </h2>
                   <p>
-                    Choisis ton premier rendez-vous de {year}. Tu pourras ensuite construire la
-                    suite.
+                    Retrouve les formats UTLAC, leurs distances et leur dénivelé auprès de
+                    l’organisateur. Importe ensuite la trace pour explorer le relief.
                   </p>
+                  <Mountains className="trail-start-mountains" />
+                  <div className="trail-start-stats">
+                    <span>5 formats</span>
+                    <span>13,5 à 259 km</span>
+                    <span>Italie</span>
+                  </div>
                   <button
                     className="button trail-primary"
                     onClick={() => {
@@ -507,234 +678,24 @@ export function TrailSeason({
                       setModal('race');
                     }}
                   >
-                    <Plus size={16} /> Ajouter une course
+                    Explorer les courses <ArrowRight size={16} />
                   </button>
-                </div>
-              )}
-              <div className="trail-season-note">
-                <span className="trail-dot" />
-                <p>
-                  {priorities.length > 3
-                    ? 'Plus de trois objectifs principaux : pense à garder de la place pour la récupération.'
-                    : 'A · objectif principal   B · préparation   C · plaisir'}
-                </p>
-              </div>
-              <button
-                className="trail-add-line"
-                onClick={() => {
-                  setEditRace(null);
-                  setModal('race');
-                }}
-              >
-                <Plus size={16} /> Un autre horizon
-              </button>
-            </section>
-            {race ? (
-              <RaceDetail
-                key={race.id}
-                race={race}
-                results={season.results}
-                profile={season.profile}
-                busy={busy}
-                setBusy={setBusy}
-                notify={setNotice}
-                update={updateRace}
-                addResult={() => {
-                  setEditResult(null);
-                  setModal('result');
-                }}
-                findRunner={() => setView('profile')}
-                editIndexes={() => {
-                  setProfileEditorOpen(true);
-                  setView('profile');
-                }}
-                edit={() => {
-                  setEditRace(race);
-                  setModal('race');
-                }}
-                remove={() => {
-                  commit(
-                    { ...season, races: season.races.filter((r) => r.id !== race.id) },
-                    'Course retirée de la saison.',
-                  );
-                  setSelected('');
-                }}
-              />
-            ) : (
-              <section className="trail-panel trail-start-panel">
-                <div className="trail-panel-kicker">
-                  <Mountain size={17} /> LE PROCHAIN SOMMET
-                </div>
-                <h2>
-                  Et si tu prenais
-                  <br />
-                  la direction du lac de Côme ?
-                </h2>
-                <p>
-                  Retrouve les formats UTLAC, leurs distances et leur dénivelé auprès de
-                  l’organisateur. Importe ensuite la trace pour explorer le relief.
-                </p>
-                <Mountains className="trail-start-mountains" />
-                <div className="trail-start-stats">
-                  <span>5 formats</span>
-                  <span>13,5 à 259 km</span>
-                  <span>Italie</span>
-                </div>
-                <button
-                  className="button trail-primary"
-                  onClick={() => {
-                    setEditRace(null);
-                    setModal('race');
-                  }}
-                >
-                  Explorer les courses <ArrowRight size={16} />
-                </button>
-                <a
-                  className="trail-source-link"
-                  href="https://www.utlactrail.com/en/"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Voir l’organisateur <ArrowUpRight size={13} />
-                </a>
-              </section>
-            )}
-          </div>
-        )}
-        {view === 'progress' && (
-          <>
-            <section className="trail-panel trail-progression-panel">
-              <div className="trail-section-heading">
-                <div>
-                  <span className="eyebrow">LE CHEMIN PARCOURU</span>
-                  <h2>Un résultat après l’autre.</h2>
-                </div>
-                <button
-                  className="button trail-primary"
-                  onClick={() => {
-                    setEditResult(null);
-                    setModal('result');
-                  }}
-                >
-                  <Plus size={16} /> Ajouter un résultat
-                </button>
-              </div>
-              <div className="trail-chart-tabs" role="group" aria-label="Mesure de progression">
-                {(
-                  [
-                    ['speed', 'Vitesse effort'],
-                    ['utmb', 'Score UTMB'],
-                    ['itra', 'Score ITRA'],
-                  ] as const
-                ).map(([id, label]) => (
-                  <button
-                    key={id}
-                    aria-pressed={metric === id}
-                    className={metric === id ? 'active' : ''}
-                    onClick={() => setMetric(id)}
+                  <a
+                    className="trail-source-link"
+                    href="https://www.utlactrail.com/en/"
+                    target="_blank"
+                    rel="noreferrer"
                   >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <ProgressChart results={results} metric={metric} />
-              <p className="trail-helper">
-                {metric === 'speed'
-                  ? 'km-effort/h = (distance + D+/100) ÷ temps écoulé. Les terrains différents limitent la comparaison.'
-                  : 'Scores de chaque course, saisis ou publiés. Cette courbe ne représente pas ton index général.'}{' '}
-                Saison {year}.
-              </p>
-            </section>
-            <section className="trail-panel trail-results-panel">
-              <div className="trail-section-heading">
-                <h2>Tes résultats.</h2>
-                <button className="text-button" onClick={() => setView('profile')}>
-                  Synchroniser UTMB <ArrowRight size={14} />
-                </button>
-              </div>
-              {results.length ? (
-                <div className="table-scroll">
-                  <table>
-                    <caption className="sr-only">Résultats de la saison {year}</caption>
-                    <thead>
-                      <tr>
-                        <th>Course</th>
-                        <th>Distance / D+</th>
-                        <th>Temps</th>
-                        <th>km-effort/h</th>
-                        <th>Place</th>
-                        <th>UTMB / ITRA</th>
-                        <th>
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {results.map((r) => (
-                        <tr key={r.id}>
-                          <td>
-                            <strong>{r.name}</strong>
-                            <span className="trail-table-date">
-                              {dateLabel(r.date)}{' '}
-                              {r.source && (
-                                <a
-                                  href={r.source}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  aria-label={`Source de ${r.name}`}
-                                >
-                                  <ArrowUpRight size={12} />
-                                </a>
-                              )}
-                            </span>
-                          </td>
-                          <td>
-                            {number(r.distanceKm, 1)} km
-                            <br />
-                            <span className="trail-helper">{number(r.ascentM)} m</span>
-                          </td>
-                          <td>{r.status === 'dnf' ? 'Abandon' : duration(r.seconds)}</td>
-                          <td>
-                            {r.status === 'finished' && r.seconds
-                              ? number(effortKm(r.distanceKm, r.ascentM) / (r.seconds / 3600), 2)
-                              : '—'}
-                          </td>
-                          <td>{r.rank ? `${r.rank} / ${r.finishers ?? '?'}` : '—'}</td>
-                          <td>
-                            {r.utmb ?? '—'} / {r.itra ?? '—'}
-                          </td>
-                          <td>
-                            <button
-                              className="trail-icon-button"
-                              aria-label={`Modifier le résultat ${r.name}`}
-                              onClick={() => {
-                                setEditResult(r);
-                                setModal('result');
-                              }}
-                            >
-                              <SlidersHorizontal size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="trail-results-empty">
-                  <p>Aucun résultat pour {year}.</p>
-                  <p className="trail-helper">
-                    Ajoute une course terminée ou retrouve tes résultats depuis ton profil UTMB.
-                  </p>
-                </div>
+                    Voir l’organisateur <ArrowUpRight size={13} />
+                  </a>
+                </section>
               )}
-            </section>
+            </div>
           </>
         )}
         {view === 'profile' && (
           <div className="trail-profile-grid">
             <section className="trail-panel">
-              <span className="eyebrow">LES CHIFFRES QUI TE SUIVENT</span>
               <h2>Ton profil coureur.</h2>
               <p className="trail-helper">
                 Renseigne ton prénom et ton nom : tes résultats remontent automatiquement si un seul
@@ -871,7 +832,13 @@ export function TrailSeason({
                       setNotice('Vérifie les scores entre 0 et 1 000 et les liens HTTPS.');
                       return;
                     }
-                    commit({ ...season, profile: parsed.data }, 'Profil enregistré.');
+                    commit(
+                      recordProfileIndexes(
+                        { ...currentSeason.current, profile: parsed.data },
+                        today(),
+                      ),
+                      'Profil enregistré.',
+                    );
                   }}
                 >
                   <Field label="Prénom">
@@ -1052,7 +1019,6 @@ export function TrailSeason({
               },
               'Résultat enregistré.',
             );
-            if (view === 'progress') setYear(Number(r.date.slice(0, 4)));
             setModal(null);
           }}
           remove={
@@ -1203,147 +1169,75 @@ function RaceDetail({
     }
   }
   return (
-    <section className="trail-panel trail-detail">
-      <div className="trail-detail-top">
-        <span className="trail-panel-kicker">
-          <Mountain size={16} /> FICHE OBJECTIF
-        </span>
-        <div>
-          <button className="trail-icon-button" aria-label="Modifier la course" onClick={edit}>
-            <SlidersHorizontal size={17} />
-          </button>
-          <button
-            className="trail-icon-button"
-            aria-label="Retirer la course de la saison"
-            onClick={remove}
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      </div>
-      <h2>{race.name}</h2>
-      <p className="trail-detail-date">
-        <CalendarDays size={14} /> {dateLabel(race.date)}
-        {race.source && (
-          <a href={race.source} target="_blank" rel="noreferrer">
-            Organisateur <ArrowUpRight size={12} />
-          </a>
-        )}
-      </p>
-      <div className="trail-detail-specs">
-        <div>
-          <span>Distance</span>
-          <strong>
-            {number(race.distanceKm, 1)}
-            <small> km</small>
-          </strong>
-        </div>
-        <div>
-          <span>Dénivelé</span>
-          <strong>
-            {number(race.ascentM)}
-            <small> m D+</small>
-          </strong>
-        </div>
-        <div>
-          <span>Effort</span>
-          <strong>
-            {number(effortKm(race.distanceKm, race.ascentM), 1)}
-            <small> km</small>
-          </strong>
-        </div>
-        <div>
-          <span>
-            {race.track && race.terrain !== null ? 'Difficulté maison' : 'Difficulté partielle'}
+    <section className="trail-panel trail-detail" aria-label={`Objectif ${race.name}`}>
+      <div className="trail-detail-header">
+        <div className="trail-detail-top">
+          <span className={`trail-detail-priority p-${race.priority}`}>
+            <Flag size={14} aria-hidden="true" />
+            {race.priority === 'A'
+              ? 'Objectif principal'
+              : race.priority === 'B'
+                ? 'Préparation'
+                : 'Plaisir'}
           </span>
-          <strong>
-            {index}
-            <small> / 100</small>
-          </strong>
-        </div>
-      </div>
-      {race.organizerTerrain && (
-        <p className="trail-helper">
-          Terrain annoncé par l’organisateur : {race.organizerTerrain}. Relevé le{' '}
-          {new Date(race.sourceCheckedAt).toLocaleDateString('fr-FR')}.
-        </p>
-      )}
-      <div className="trail-relief-head">
-        <h3>Lire le terrain.</h3>
-        {race.track && <span className="trail-tag">GPX analysé</span>}
-      </div>
-      {race.track ? (
-        <>
-          <div className="trail-track-grid">
-            <ElevationChart track={race.track} />
-            <RouteDrawing track={race.track} />
-          </div>
-          <p className="trail-helper">
-            GPX : {number(race.track.distanceKm, 1)} km · {number(race.track.ascentM)} m D+ ·{' '}
-            {number(race.track.descentM)} m D− · pentes marquées {race.track.slopeIndex}/100.
-          </p>
-          <p className="trail-helper">
-            {race.track.filename} · relevé le{' '}
-            {new Date(race.track.fetchedAt).toLocaleDateString('fr-FR')}
-            {race.track.source && (
-              <>
-                {' '}
-                ·{' '}
-                <a href={race.track.source} target="_blank" rel="noreferrer">
-                  source GPX ↗
-                </a>
-              </>
-            )}
-          </p>
-          {(Math.abs(race.track.distanceKm / race.distanceKm - 1) > 0.05 ||
-            (race.ascentM > 0 && Math.abs(race.track.ascentM / race.ascentM - 1) > 0.1)) && (
-            <p className="trail-warning">
-              Écart avec les valeurs organisateur : plus de 5 % en distance ou 10 % en D+. Le
-              filtrage et l’édition du GPX peuvent l’expliquer ; vérifie la trace officielle.
-            </p>
-          )}
-        </>
-      ) : (
-        <div className="trail-gpx-empty">
-          <Mountain size={24} strokeWidth={1.2} />
           <div>
-            <strong>Le relief attend sa trace.</strong>
-            <p>
-              Analyse les montées, les descentes et le profil de pente depuis un GPX avec altitudes.
-            </p>
+            <button className="trail-icon-button" aria-label="Modifier la course" onClick={edit}>
+              <SlidersHorizontal size={17} />
+            </button>
+            <button
+              className="trail-icon-button"
+              aria-label="Retirer la course de la saison"
+              onClick={remove}
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
         </div>
-      )}
-      <div className="trail-file-actions">
-        {race.catalogId && (
-          <button className="button secondary" disabled={!!busy} onClick={() => void importTrack()}>
-            <ArrowDownToLine size={14} />
-            {busy === 'gpx' ? 'Analyse…' : 'Récupérer le GPX'}
-          </button>
-        )}
-        <button className="text-button" disabled={!!busy} onClick={() => gpxRef.current?.click()}>
-          <Upload size={14} /> Importer un GPX
-        </button>
-        <input
-          ref={gpxRef}
-          type="file"
-          accept=".gpx,application/gpx+xml"
-          className="sr-only"
-          aria-label="Trace GPX"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void importTrack(file);
-            e.target.value = '';
-          }}
-        />
+        <h2>{race.name}</h2>
+        <p className="trail-detail-date">
+          <CalendarDays size={14} /> {dateLabel(race.date)}
+          {race.source && (
+            <a href={race.source} target="_blank" rel="noreferrer">
+              Organisateur <ArrowUpRight size={12} />
+            </a>
+          )}
+        </p>
+        <div className="trail-detail-specs">
+          <div>
+            <span>Distance</span>
+            <strong>
+              {number(race.distanceKm, 1)}
+              <small> km</small>
+            </strong>
+          </div>
+          <div>
+            <span>Dénivelé</span>
+            <strong>
+              {number(race.ascentM)}
+              <small> m D+</small>
+            </strong>
+          </div>
+          <div>
+            <span>Effort</span>
+            <strong>
+              {number(effortKm(race.distanceKm, race.ascentM), 1)}
+              <small> km</small>
+            </strong>
+          </div>
+          <div>
+            <span>
+              {race.track && race.terrain !== null ? 'Difficulté maison' : 'Difficulté partielle'}
+            </span>
+            <strong>
+              {index}
+              <small> / 100</small>
+            </strong>
+          </div>
+        </div>
       </div>
       <div className="trail-simulation">
         <div className="trail-section-heading">
-          <div>
-            <span className="eyebrow">DONNER UN CAP À L’EFFORT</span>
-            <h3>Ton scénario de course.</h3>
-          </div>
-          <Flag size={20} />
+          <h3>Ton scénario de course.</h3>
         </div>
         <form
           className="trail-target-form"
@@ -1459,9 +1353,8 @@ function RaceDetail({
               </p>
             )}
             <div className="trail-score-estimates">
-              <span>
-                Le niveau associé à ton objectif <small>· estimation indicative</small>
-              </span>
+              <h4>Le niveau associé à ton objectif</h4>
+              <p className="trail-estimate-caption">Estimation indicative</p>
               <div className="trail-level-grid">
                 {(['utmb', 'itra'] as const).map((key) => {
                   const estimate = levels[key];
@@ -1518,7 +1411,7 @@ function RaceDetail({
         )}
       </div>
       <div className="trail-prediction">
-        <span className="trail-tag">Projection personnelle</span>
+        <h3>Projection personnelle</h3>
         <strong>
           {prediction
             ? `${duration(prediction.low)} – ${duration(prediction.high)}`
@@ -1540,6 +1433,88 @@ function RaceDetail({
           </div>
         )}
       </div>
+      <section className="trail-terrain-section" aria-label="Terrain et trace GPX">
+        {race.organizerTerrain && (
+          <p className="trail-helper">
+            Terrain annoncé par l’organisateur : {race.organizerTerrain}. Relevé le{' '}
+            {new Date(race.sourceCheckedAt).toLocaleDateString('fr-FR')}.
+          </p>
+        )}
+        <div className="trail-relief-head">
+          <h3>Lire le terrain.</h3>
+          {race.track && <span className="trail-tag">GPX analysé</span>}
+        </div>
+        {race.track ? (
+          <>
+            <div className="trail-track-grid">
+              <ElevationChart track={race.track} />
+              <RouteDrawing track={race.track} />
+            </div>
+            <p className="trail-helper">
+              GPX : {number(race.track.distanceKm, 1)} km · {number(race.track.ascentM)} m D+ ·{' '}
+              {number(race.track.descentM)} m D− · pentes marquées {race.track.slopeIndex}/100.
+            </p>
+            <p className="trail-helper">
+              {race.track.filename} · relevé le{' '}
+              {new Date(race.track.fetchedAt).toLocaleDateString('fr-FR')}
+              {race.track.source && (
+                <>
+                  {' '}
+                  ·{' '}
+                  <a href={race.track.source} target="_blank" rel="noreferrer">
+                    source GPX ↗
+                  </a>
+                </>
+              )}
+            </p>
+            {(Math.abs(race.track.distanceKm / race.distanceKm - 1) > 0.05 ||
+              (race.ascentM > 0 && Math.abs(race.track.ascentM / race.ascentM - 1) > 0.1)) && (
+              <p className="trail-warning">
+                Écart avec les valeurs organisateur : plus de 5 % en distance ou 10 % en D+. Le
+                filtrage et l’édition du GPX peuvent l’expliquer ; vérifie la trace officielle.
+              </p>
+            )}
+          </>
+        ) : (
+          <div className="trail-gpx-empty">
+            <Mountain size={24} strokeWidth={1.2} />
+            <div>
+              <strong>Le relief attend sa trace.</strong>
+              <p>
+                Analyse les montées, les descentes et le profil de pente depuis un GPX avec
+                altitudes.
+              </p>
+            </div>
+          </div>
+        )}
+        <div className="trail-file-actions">
+          {race.catalogId && (
+            <button
+              className="button secondary"
+              disabled={!!busy}
+              onClick={() => void importTrack()}
+            >
+              <ArrowDownToLine size={14} />
+              {busy === 'gpx' ? 'Analyse…' : 'Récupérer le GPX'}
+            </button>
+          )}
+          <button className="text-button" disabled={!!busy} onClick={() => gpxRef.current?.click()}>
+            <Upload size={14} /> Importer un GPX
+          </button>
+          <input
+            ref={gpxRef}
+            type="file"
+            accept=".gpx,application/gpx+xml"
+            className="sr-only"
+            aria-label="Trace GPX"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void importTrack(file);
+              e.target.value = '';
+            }}
+          />
+        </div>
+      </section>
       <details ref={rankingRef} className="trail-method">
         <summary>Classement de référence & estimation des scores</summary>
         <p>

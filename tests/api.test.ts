@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 const jar = vi.hoisted(() => new Map<string, string>());
 vi.mock('next/headers', () => ({
+  headers: async () => new Headers(),
   cookies: async () => ({
     get: (name: string) => (jar.has(name) ? { value: jar.get(name) } : undefined),
     set: (name: string, value: string) => {

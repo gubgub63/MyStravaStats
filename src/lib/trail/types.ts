@@ -90,8 +90,24 @@ export const raceSchema = z.object({
 export const seasonSchema = z.object({
   version: z.literal(1),
   profile: profileSchema,
-  results: z.array(resultSchema).max(1000),
-  races: z.array(raceSchema).max(100),
+  indexHistory: z
+    .array(z.object({ date, provider: z.enum(['utmb', 'itra']), value: score.unwrap() }))
+    .max(20000)
+    .default([]),
+  results: z
+    .array(resultSchema)
+    .max(1000)
+    .refine(
+      (rows) => new Set(rows.map((r) => r.id)).size === rows.length,
+      'Identifiants de résultats dupliqués.',
+    ),
+  races: z
+    .array(raceSchema)
+    .max(100)
+    .refine(
+      (rows) => new Set(rows.map((r) => r.id)).size === rows.length,
+      'Identifiants de courses dupliqués.',
+    ),
 });
 export type TrailProfile = z.infer<typeof profileSchema>;
 export type TrailResult = z.infer<typeof resultSchema>;
@@ -111,6 +127,7 @@ export function emptySeason(firstname = '', lastname = ''): Season {
       itraUrl: '',
       checkedAt: '',
     },
+    indexHistory: [],
     results: [],
     races: [],
   };

@@ -1,0 +1,575 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "profile": {
+      "type": "object",
+      "properties": {
+        "firstname": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "lastname": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "utmb": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "itra": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "utmbUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "itraUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "checkedAt": {
+          "type": "string",
+          "maxLength": 40
+        }
+      },
+      "required": [
+        "firstname",
+        "lastname",
+        "utmb",
+        "itra",
+        "utmbUrl",
+        "itraUrl",
+        "checkedAt"
+      ],
+      "additionalProperties": false
+    },
+    "indexHistory": {
+      "default": [],
+      "maxItems": 20000,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "utmb",
+              "itra"
+            ]
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "date",
+          "provider",
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "results": {
+      "maxItems": 1000,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "distanceKm": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1000
+          },
+          "ascentM": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 2592000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "finished",
+              "dnf"
+            ]
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finishers": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "utmb": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "itra": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "terrain": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "date",
+          "distanceKm",
+          "ascentM",
+          "seconds",
+          "status",
+          "rank",
+          "finishers",
+          "utmb",
+          "itra",
+          "source",
+          "terrain"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "races": {
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "distanceKm": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1000
+          },
+          "ascentM": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C"
+            ]
+          },
+          "targetSeconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 2592000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "terrain": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "catalogId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "track": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "distanceKm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1000
+                  },
+                  "ascentM": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "descentM": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "steepFraction": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "steepDescentFraction": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "slopeIndex": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "points": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 9007199254740991
+                  },
+                  "profile": {
+                    "minItems": 2,
+                    "maxItems": 700,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "km": {
+                          "type": "number"
+                        },
+                        "elevation": {
+                          "type": "number"
+                        },
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "lon": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        },
+                        "segment": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "km",
+                        "elevation",
+                        "lat",
+                        "lon",
+                        "segment"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "filename": {
+                    "type": "string",
+                    "maxLength": 250
+                  },
+                  "fetchedAt": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "source": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "distanceKm",
+                  "ascentM",
+                  "descentM",
+                  "steepFraction",
+                  "steepDescentFraction",
+                  "slopeIndex",
+                  "points",
+                  "profile",
+                  "filename",
+                  "fetchedAt",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "field": {
+            "maxItems": 20000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "seconds": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 2592000
+                },
+                "utmb": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "itra": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "seconds",
+                "utmb",
+                "itra"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "fieldLabel": {
+            "type": "string",
+            "maxLength": 250
+          },
+          "fieldSource": {
+            "default": "",
+            "type": "string",
+            "maxLength": 1000
+          },
+          "fieldEdition": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1900,
+                "maximum": 2200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fieldDistanceKm": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fieldAscentM": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cutoffHours": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "organizerTerrain": {
+            "default": "",
+            "type": "string",
+            "maxLength": 250
+          },
+          "sourceCheckedAt": {
+            "default": "",
+            "type": "string",
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "date",
+          "distanceKm",
+          "ascentM",
+          "priority",
+          "targetSeconds",
+          "terrain",
+          "notes",
+          "source",
+          "catalogId",
+          "track",
+          "field",
+          "fieldLabel",
+          "fieldSource",
+          "fieldEdition",
+          "fieldDistanceKm",
+          "fieldAscentM",
+          "cutoffHours",
+          "organizerTerrain",
+          "sourceCheckedAt"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "version",
+    "profile",
+    "indexHistory",
+    "results",
+    "races"
+  ],
+  "additionalProperties": false
+}

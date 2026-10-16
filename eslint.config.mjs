@@ -6,6 +6,7 @@ export default defineConfig([
   ...nextTs,
   globalIgnores([
     '.next/**',
+    '.next-ios/**',
     '.pages-build/**',
     '.vercel/**',
     'next-env.d.ts',

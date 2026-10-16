@@ -10,29 +10,37 @@
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "contracts": "node --experimental-strip-types scripts/generate-contracts.mjs",
+    "contracts:check": "npm run contracts -- --check",
+    "db:migrate": "node scripts/db/migrate.mjs",
+    "ios:setup": "node scripts/setup-ios-local.mjs",
+    "dev:ios": "node scripts/dev-ios.mjs"
   },
   "dependencies": {
+    "iron-session": "9.0.1",
+    "lucide-react": "^0.468.0",
     "next": "16.3.8",
+    "pg": "^8.23.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "iron-session": "9.0.1",
-    "zod": "^4.0.0",
     "recharts": "3.10.1",
-    "lucide-react": "^0.468.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.0",
+    "@electric-sql/pglite": "^0.5.9",
+    "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.0.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/postcss": "^4.0.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "16.3.8",
-    "vitest": "^5.0.3",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.3"
   },
   "type": "module"
 }

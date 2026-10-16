@@ -3,15 +3,12 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import type { TrackAnalysis, TrailResult } from '@/lib/trail/types';
-import { effortKm } from '@/lib/trail/model';
+import type { TrackAnalysis } from '@/lib/trail/types';
 
 const tick = { fill: 'var(--muted)', fontSize: 11 };
 const tooltip = {
@@ -21,83 +18,6 @@ const tooltip = {
   color: 'var(--ink)',
   fontSize: 12,
 };
-export function ProgressChart({
-  results,
-  metric,
-}: {
-  results: TrailResult[];
-  metric: 'speed' | 'utmb' | 'itra';
-}) {
-  const data = results
-    .filter((r) => r.status === 'finished' && (metric === 'speed' ? r.seconds : r[metric] !== null))
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((r) => ({
-      name: r.name,
-      date: r.date,
-      value:
-        metric === 'speed'
-          ? Number((effortKm(r.distanceKm, r.ascentM) / (r.seconds! / 3600)).toFixed(2))
-          : r[metric],
-    }));
-  if (!data.length)
-    return (
-      <div className="trail-chart-empty">
-        {metric === 'speed'
-          ? 'Ajoute un résultat avec son temps pour dessiner ta progression.'
-          : `Aucun score ${metric.toUpperCase()} publié ou renseigné pour ces résultats.`}
-      </div>
-    );
-  return (
-    <div className="trail-chart" aria-label="Progression des résultats ; détails dans le tableau">
-      <ResponsiveContainer width="100%" height="100%" minWidth={1}>
-        <LineChart
-          data={data}
-          margin={{ left: 0, right: 16, top: 15, bottom: 0 }}
-          accessibilityLayer
-        >
-          <CartesianGrid stroke="var(--line)" vertical={false} />
-          <XAxis
-            dataKey="date"
-            tick={tick}
-            tickFormatter={(s) =>
-              new Date(s + 'T12:00:00').toLocaleDateString('fr-FR', {
-                month: 'short',
-                year: '2-digit',
-              })
-            }
-            axisLine={false}
-            tickLine={false}
-            minTickGap={30}
-          />
-          <YAxis
-            tick={tick}
-            axisLine={false}
-            tickLine={false}
-            width={42}
-            domain={['auto', 'auto']}
-          />
-          <Tooltip
-            contentStyle={tooltip}
-            labelFormatter={(_, payload) => payload[0]?.payload?.name ?? ''}
-            formatter={(value) => [
-              `${value} ${metric === 'speed' ? 'km-effort/h' : 'pts'}`,
-              metric === 'speed' ? 'Vitesse effort' : `Score ${metric.toUpperCase()}`,
-            ]}
-          />
-          <Line
-            type="linear"
-            dataKey="value"
-            stroke="var(--trail-accent)"
-            strokeWidth={2.5}
-            dot={{ r: 4, fill: 'var(--surface)', strokeWidth: 2 }}
-            activeDot={{ r: 6 }}
-            isAnimationActive={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
 export function ElevationChart({ track }: { track: TrackAnalysis }) {
   return (
     <div className="trail-elevation" aria-label="Profil altimétrique de la trace GPX">

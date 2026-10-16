@@ -9,3 +9,7 @@ coverage
 docs/screenshots
 *.tsbuildinfo
 .DS_Store
+
+apps/ios
+
+.next-ios

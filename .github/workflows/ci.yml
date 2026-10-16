@@ -12,6 +12,19 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mystats
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: mystats
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U mystats"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://mystats:ci-test-only@localhost:5432/mystats
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,6 +35,7 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
+      - run: npm run contracts:check
       - run: npm audit --omit=dev
       - run: npm run build
   deploy:
@@ -46,3 +60,16 @@ jobs:
         run: npx --yes vercel@62.4.0 build --prod --token="$VERCEL_TOKEN"
       - name: Deploy production
         run: npx --yes vercel@62.4.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Swift calculations and backup contracts
+        run: swift test --package-path apps/ios/MyStatsCore
+      - name: Select an available iPhone simulator
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for runtime in devices.values() for d in runtime if "iPhone" in d["name"]))')
+          echo "IOS_TEST_DEVICE=$DEVICE_ID" >> "$GITHUB_ENV"
+      - name: Build and test iOS
+        run: xcodebuild -project apps/ios/MyStats.xcodeproj -scheme MyStats -destination "platform=iOS Simulator,id=$IOS_TEST_DEVICE" -derivedDataPath /tmp/mystats-ios CODE_SIGNING_ALLOWED=NO test
