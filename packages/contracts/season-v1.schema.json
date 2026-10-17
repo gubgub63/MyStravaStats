@@ -237,6 +237,18 @@
       "items": {
         "type": "object",
         "properties": {
+          "photo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100000,
+                "pattern": "^data:image\\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string",
             "minLength": 1,

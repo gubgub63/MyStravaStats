@@ -64,7 +64,12 @@ export const fieldSchema = z
     }),
   )
   .max(20000);
+export const racePhotoSchema = z
+  .string()
+  .max(100000)
+  .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/);
 export const raceSchema = z.object({
+  photo: racePhotoSchema.nullable().optional(),
   id: z.string().min(1).max(200),
   name: z.string().min(1).max(250),
   date,

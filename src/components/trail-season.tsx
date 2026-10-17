@@ -19,6 +19,10 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
+import raceStyles from './race-detail.module.css';
+import { RacePhoto } from './race-photo';
+import { SeasonCalendar } from './season-calendar';
+import { prepareRacePhoto } from '@/lib/trail/photo';
 import { SeasonSync, markSeasonDirty } from './season-sync';
 import { Header, Footer, Mountains } from './shell';
 import {
@@ -58,7 +62,7 @@ const RouteDrawing = dynamic(() => import('./trail-charts').then((m) => m.RouteD
   ssr: false,
 });
 type Athlete = { id: number; firstname?: string; lastname?: string };
-type View = 'plan' | 'profile';
+type View = 'plan' | 'calendar' | 'profile';
 const terrainNames = [
   'Roulant',
   'Sentier facile',
@@ -164,6 +168,7 @@ export function TrailSeason({
   const [year, setYear] = useState(() => Number(today().slice(0, 4)) + 1);
   const [selected, setSelected] = useState('');
   const [modal, setModal] = useState<'race' | 'result' | null>(null);
+  const [newRaceDate, setNewRaceDate] = useState('');
   const [editRace, setEditRace] = useState<TrailRace | null>(null);
   const [editResult, setEditResult] = useState<TrailResult | null>(null);
   const [busy, setBusy] = useState('');
@@ -394,6 +399,7 @@ export function TrailSeason({
             className="button trail-primary trail-heading-action"
             onClick={() => {
               setEditRace(null);
+              setNewRaceDate('');
               setModal('race');
             }}
           >
@@ -405,6 +411,7 @@ export function TrailSeason({
             {(
               [
                 ['plan', 'Mes objectifs', Flag],
+                ['calendar', 'Calendrier', CalendarDays],
                 ['profile', 'Mon profil', UserRound],
               ] as const
             ).map(([id, label, Icon]) => (
@@ -480,6 +487,23 @@ export function TrailSeason({
             </strong>
           </div>
         </div>
+        {view === 'calendar' && (
+          <SeasonCalendar
+            year={year}
+            races={races}
+            today={today()}
+            goToday={() => setYear(Number(today().slice(0, 4)))}
+            open={(r) => {
+              setSelected(r.id);
+              setView('plan');
+            }}
+            add={(date) => {
+              setNewRaceDate(date);
+              setEditRace(null);
+              setModal('race');
+            }}
+          />
+        )}
         {view === 'plan' && (
           <>
             <details className="trail-year-map">
@@ -511,6 +535,7 @@ export function TrailSeason({
                               title={r.name}
                               onClick={() => setSelected(r.id)}
                             >
+                              <RacePhoto photo={r.photo} className="trail-year-photo" />
                               {r.date.slice(8)}
                               <small>{r.priority}</small>
                             </button>
@@ -566,6 +591,7 @@ export function TrailSeason({
                           <strong>{r.date.slice(8)}</strong>
                         </div>
                         <div className="trail-race-card-body">
+                          <RacePhoto photo={r.photo} className="trail-card-photo" />
                           <span className={`trail-priority p-${r.priority}`}>
                             {r.priority === 'A'
                               ? 'Objectif principal'
@@ -986,8 +1012,12 @@ export function TrailSeason({
       {modal === 'race' && (
         <RaceEditor
           race={editRace}
+          initialDate={newRaceDate}
           year={year}
-          close={() => setModal(null)}
+          close={() => {
+            setModal(null);
+            setNewRaceDate('');
+          }}
           save={(r) => {
             commit(
               {
@@ -999,6 +1029,7 @@ export function TrailSeason({
               'Course enregistrée.',
             );
             setSelected(r.id);
+            setNewRaceDate('');
             setYear(Number(r.date.slice(0, 4)));
             setModal(null);
           }}
@@ -1066,6 +1097,8 @@ function RaceDetail({
   editIndexes: () => void;
 }) {
   const [target, setTarget] = useState(durationInput(race.targetSeconds));
+  const [targetError, setTargetError] = useState('');
+  const targetRef = useRef<HTMLInputElement>(null);
   const gpxRef = useRef<HTMLInputElement>(null),
     csvRef = useRef<HTMLInputElement>(null);
   const prediction = predictTime(race, results, today());
@@ -1169,8 +1202,12 @@ function RaceDetail({
     }
   }
   return (
-    <section className="trail-panel trail-detail" aria-label={`Objectif ${race.name}`}>
-      <div className="trail-detail-header">
+    <section
+      className={`trail-panel trail-detail ${raceStyles.workspace}`}
+      aria-label={`Objectif ${race.name}`}
+    >
+      <RacePhoto photo={race.photo} className="trail-detail-photo" />
+      <div className={`trail-detail-header ${raceStyles.header}`}>
         <div className="trail-detail-top">
           <span className={`trail-detail-priority p-${race.priority}`}>
             <Flag size={14} aria-hidden="true" />
@@ -1181,13 +1218,20 @@ function RaceDetail({
                 : 'Plaisir'}
           </span>
           <div>
-            <button className="trail-icon-button" aria-label="Modifier la course" onClick={edit}>
-              <SlidersHorizontal size={17} />
+            <button
+              className={raceStyles.editButton}
+              aria-label="Modifier la course"
+              onClick={edit}
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" />
+              <span>Modifier</span>
             </button>
             <button
               className="trail-icon-button"
               aria-label="Retirer la course de la saison"
-              onClick={remove}
+              onClick={() => {
+                if (window.confirm(`Retirer « ${race.name} » de ta saison ?`)) remove();
+              }}
             >
               <Trash2 size={16} />
             </button>
@@ -1195,14 +1239,14 @@ function RaceDetail({
         </div>
         <h2>{race.name}</h2>
         <p className="trail-detail-date">
-          <CalendarDays size={14} /> {dateLabel(race.date)}
+          <CalendarDays size={14} aria-hidden="true" /> {dateLabel(race.date)}
           {race.source && (
             <a href={race.source} target="_blank" rel="noreferrer">
               Organisateur <ArrowUpRight size={12} />
             </a>
           )}
         </p>
-        <div className="trail-detail-specs">
+        <div className={raceStyles.courseFacts}>
           <div>
             <span>Distance</span>
             <strong>
@@ -1211,228 +1255,325 @@ function RaceDetail({
             </strong>
           </div>
           <div>
-            <span>Dénivelé</span>
+            <span>Dénivelé positif</span>
             <strong>
               {number(race.ascentM)}
               <small> m D+</small>
             </strong>
           </div>
-          <div>
-            <span>Effort</span>
-            <strong>
-              {number(effortKm(race.distanceKm, race.ascentM), 1)}
-              <small> km</small>
-            </strong>
-          </div>
-          <div>
-            <span>
-              {race.track && race.terrain !== null ? 'Difficulté maison' : 'Difficulté partielle'}
-            </span>
-            <strong>
-              {index}
-              <small> / 100</small>
-            </strong>
-          </div>
+        </div>
+        <div className={raceStyles.courseSecondary}>
+          <span>
+            Effort <b>{number(effortKm(race.distanceKm, race.ascentM), 1)} km</b>
+          </span>
+          <span>
+            {race.track && race.terrain !== null ? 'Difficulté maison' : 'Difficulté partielle'}{' '}
+            <b>{index}/100</b>
+          </span>
         </div>
       </div>
-      <div className="trail-simulation">
-        <div className="trail-section-heading">
-          <h3>Ton scénario de course.</h3>
+      <section className={raceStyles.scenario} aria-labelledby="race-scenario-title">
+        <div className={raceStyles.scenarioHeading}>
+          <h3 id="race-scenario-title">Ton objectif de temps</h3>
+          <p>Définis ton objectif, découvre ce qu’il représente.</p>
         </div>
-        <form
-          className="trail-target-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const seconds = parseDuration(target);
-            if (!seconds) {
-              notify('Utilise un temps au format H:MM ou H:MM:SS, par exemple 24:00.');
-              return;
-            }
-            update({ id: race.id, targetSeconds: seconds }, 'Temps cible enregistré.');
-          }}
-        >
-          <label>
-            <span>Temps total visé, pauses comprises</span>
-            <input
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              placeholder="24:00"
-              required
-              pattern="[0-9]{1,3}:[0-9]{2}(:[0-9]{2})?"
-              inputMode="text"
-              aria-describedby="target-help"
-            />
-          </label>
-          <button className="button trail-primary">
-            Actualiser <ArrowRight size={14} />
-          </button>
-        </form>
-        <p id="target-help" className="trail-helper">
-          Format heures:minutes. Exemple : 24:00 pour 24 heures.
-        </p>
-        {race.targetSeconds && (
-          <>
-            <div className="trail-scenario-values">
-              <div>
-                <span>Allure moyenne</span>
-                <strong>
-                  {pace(race.targetSeconds / race.distanceKm)}
-                  <small> min/km</small>
-                </strong>
-              </div>
-              <div>
-                <span>Vitesse moyenne</span>
-                <strong>
-                  {number(race.distanceKm / (race.targetSeconds / 3600), 2)}
-                  <small> km/h</small>
-                </strong>
-                <p>{number(race.distanceKm / (race.targetSeconds / 60), 3)} km/min</p>
-              </div>
-              <div>
-                <span>Place historique estimée</span>
-                <strong>{field ? `${field.rank}${field.rank === 1 ? 're' : 'e'}` : '—'}</strong>
-                <p>
-                  {field
-                    ? `${field.lowRank}–${field.highRank}e pour ±10 % de temps · ${field.finishers} finishers`
-                    : historyLoading
-                      ? 'Lecture du classement UTLAC…'
-                      : 'Classement de référence manquant'}
-                </p>
-              </div>
-            </div>
-            {historyLoading && (
-              <p className="trail-helper" role="status">
-                Récupération de toutes les pages du classement officiel…
-              </p>
-            )}
-            {historyError && (
-              <div className="trail-warning" role="status">
-                <p>{historyError}</p>
-                <button className="text-button" onClick={() => setHistoryAttempt((n) => n + 1)}>
-                  Réessayer
+        <div className={raceStyles.scenarioLayout}>
+          <div>
+            <form
+              className={raceStyles.targetForm}
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+                const seconds = parseDuration(target);
+                if (!seconds || seconds > 30 * 86400) {
+                  setTargetError(
+                    'Utilise H:MM ou H:MM:SS, avec un temps supérieur à zéro et limité à 720 heures.',
+                  );
+                  targetRef.current?.focus();
+                  return;
+                }
+                setTargetError('');
+                update({ id: race.id, targetSeconds: seconds }, 'Temps cible enregistré.');
+              }}
+            >
+              <label htmlFor="race-target">
+                Temps visé <span>· pauses comprises</span>
+              </label>
+              <div className={raceStyles.targetControls}>
+                <input
+                  id="race-target"
+                  ref={targetRef}
+                  value={target}
+                  onChange={(e) => {
+                    setTarget(e.target.value);
+                    setTargetError('');
+                  }}
+                  placeholder="18:30:00"
+                  inputMode="text"
+                  required
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-invalid={!!targetError}
+                  aria-describedby={targetError ? 'race-target-error target-help' : 'target-help'}
+                />
+                <button
+                  className="button trail-primary"
+                  disabled={parseDuration(target) === race.targetSeconds && !!race.targetSeconds}
+                >
+                  {parseDuration(target) === race.targetSeconds && race.targetSeconds ? (
+                    <>
+                      <Check size={16} aria-hidden="true" /> À jour
+                    </>
+                  ) : (
+                    <>
+                      Enregistrer <ArrowRight size={16} aria-hidden="true" />
+                    </>
+                  )}
                 </button>
               </div>
-            )}
-            {!compatible && (
-              <p className="trail-warning">
-                Le parcours a changé depuis le chargement du classement. Importe une référence
-                correspondant à la distance et au D+ de cet objectif.
+              <p id="target-help" className={raceStyles.hint}>
+                Heures : minutes : secondes. Par exemple, 18:30:00 pour 18 h 30.
               </p>
-            )}
-            {field && (
-              <p className="trail-helper">
-                Position avec ton objectif de {duration(race.targetSeconds)} dans{' '}
-                {race.fieldEdition ? `l’édition ${race.fieldEdition}` : 'le classement importé'} :{' '}
-                {field.rank > field.finishers
-                  ? `après les ${field.finishers} finishers`
-                  : `${field.rank === 1 ? '1er' : `${field.rank}e`} sur ${field.finishers} finishers`}
-                . Le peloton de {race.date.slice(0, 4)} pourra être différent.{' '}
-                {race.fieldSource && (
-                  <a href={race.fieldSource} target="_blank" rel="noreferrer">
-                    Voir la source ↗
-                  </a>
+              {targetError && (
+                <p id="race-target-error" className={raceStyles.error} role="alert">
+                  {targetError}
+                </p>
+              )}
+            </form>
+            {race.targetSeconds ? (
+              <>
+                <div
+                  className={raceStyles.paceRow}
+                  aria-label="Allure et vitesse pour le temps enregistré"
+                >
+                  <span>
+                    <strong>{pace(race.targetSeconds / race.distanceKm)}</strong> min/km
+                  </span>
+                  <span>
+                    <strong>{number(race.distanceKm / (race.targetSeconds / 3600), 2)}</strong> km/h
+                    en moyenne
+                  </span>
+                </div>
+                {parseDuration(target) !== race.targetSeconds && (
+                  <p className={raceStyles.draftNotice} role="status">
+                    Les repères correspondent encore au temps appliqué :{' '}
+                    {duration(race.targetSeconds)}.
+                  </p>
                 )}
+                {race.cutoffHours && race.targetSeconds > race.cutoffHours * 3600 && (
+                  <p className="trail-warning">
+                    Ce temps dépasse la barrière finale de {duration(race.cutoffHours * 3600)}.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className={raceStyles.hint}>
+                Enregistre un premier temps pour afficher ton allure et les niveaux associés.
               </p>
             )}
-            {!field && !historyLoading && (
-              <button
-                className="text-button trail-reference-action"
-                onClick={() => {
-                  if (rankingRef.current) {
-                    rankingRef.current.open = true;
-                    rankingRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }
-                }}
-              >
-                Ajouter le classement de référence <ArrowRight size={14} />
-              </button>
-            )}
-            {race.cutoffHours && race.targetSeconds > race.cutoffHours * 3600 && (
-              <p className="trail-warning">
-                Ce temps dépasse la barrière finale de {duration(race.cutoffHours * 3600)}.
-              </p>
-            )}
-            <div className="trail-score-estimates">
-              <h4>Le niveau associé à ton objectif</h4>
-              <p className="trail-estimate-caption">Estimation indicative</p>
-              <div className="trail-level-grid">
-                {(['utmb', 'itra'] as const).map((key) => {
-                  const estimate = levels[key];
-                  return (
-                    <div className="trail-level-metric" key={key}>
-                      <span>
-                        {estimate?.method === 'historical' ? 'Score' : 'Niveau'} {key.toUpperCase()}{' '}
-                        estimé
-                      </span>
-                      {estimate ? (
-                        <>
-                          <strong>
-                            {estimate.value}
-                            <small> / 1 000</small>
-                          </strong>
-                          {estimate.method === 'personal' ? (
-                            <p>
-                              Point de départ : index {profile[key]}. Fourchette {estimate.low}–
-                              {estimate.high}, indicative.
-                            </p>
-                          ) : (
-                            <p>Calibré sur {estimate.references} scores de course publiés.</p>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <strong className="trail-level-missing">
-                            {!profile[key] ? 'Index à renseigner' : 'Résultat de référence requis'}
-                          </strong>
-                          <button
-                            className="text-button"
-                            onClick={!profile[key] ? editIndexes : addResult}
-                          >
-                            {!profile[key]
-                              ? `Renseigner mon index ${key.toUpperCase()}`
-                              : 'Ajouter un résultat'}{' '}
-                            <ArrowRight size={13} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <p className="trail-helper">
-              {levels.utmb?.method === 'personal' || levels.itra?.method === 'personal'
-                ? 'Le niveau personnel utilise ton index actuel et la projection de tes résultats récents pour le temps visé. '
-                : ''}
-              Ces estimations ne prédisent pas ton futur index général officiel. L’index ITRA doit
-              provenir de ton profil ITRA ; la recherche UTMB ne le fournit pas.
-            </p>
-          </>
-        )}
-      </div>
-      <div className="trail-prediction">
-        <h3>Projection personnelle</h3>
-        <strong>
-          {prediction
-            ? `${duration(prediction.low)} – ${duration(prediction.high)}`
-            : 'Il manque une course de référence personnelle.'}
-        </strong>
-        <p>
-          {prediction
-            ? `Centre : ${duration(prediction.central)} · ${prediction.references} course(s) récente(s). ${prediction.extrapolated ? 'Forte extrapolation de distance : marge élargie.' : 'Marge minimale de ±20 %, indicative.'}`
-            : 'Le GPX décrit le parcours ; ton objectif décrit le temps souhaité. Pour estimer ton temps probable, ajoute au moins un résultat terminé avec distance, D+ et temps écoulé, datant de moins de trois ans. La connexion Strava n’importe pas automatiquement tes résultats de compétition.'}
-        </p>
-        {!prediction && (
-          <div className="trail-file-actions">
-            <button className="button secondary" onClick={addResult}>
-              <Plus size={14} /> Ajouter un résultat
-            </button>
-            <button className="text-button" onClick={findRunner}>
-              Importer mes résultats UTMB <ArrowRight size={14} />
-            </button>
           </div>
-        )}
-      </div>
+          <section className={raceStyles.personal} aria-labelledby="race-prediction-title">
+            <h4 id="race-prediction-title" className="sr-only">
+              Ton repère personnel
+            </h4>
+            {prediction ? (
+              <>
+                <div className={raceStyles.predictionSummary}>
+                  <div>
+                    <span className={raceStyles.label}>Temps de référence estimé</span>
+                    <strong>{duration(prediction.central)}</strong>
+                  </div>
+                  <div>
+                    <span className={raceStyles.label}>Fourchette indicative</span>
+                    <b>
+                      {duration(prediction.low)} – {duration(prediction.high)}
+                    </b>
+                  </div>
+                </div>
+                <p className={raceStyles.hint}>
+                  À partir de {prediction.references} course{prediction.references > 1 ? 's' : ''}{' '}
+                  récente{prediction.references > 1 ? 's' : ''}.{' '}
+                  {prediction.extrapolated
+                    ? 'Distance éloignée de tes références : incertitude élevée.'
+                    : 'Une marge d’au moins ±20 % reste à prévoir.'}
+                </p>
+              </>
+            ) : (
+              <div className={raceStyles.empty}>
+                <p>Ajoute un résultat récent pour situer ton objectif.</p>
+                <p className={raceStyles.hint}>
+                  Une course terminée avec distance, dénivelé et temps, datant de moins de trois
+                  ans.
+                </p>
+                <div className="trail-file-actions">
+                  <button className="button secondary" onClick={addResult}>
+                    <Plus size={16} aria-hidden="true" /> Ajouter un résultat
+                  </button>
+                  <button className="text-button" onClick={findRunner}>
+                    Importer depuis UTMB <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      </section>
+
+      {!!race.targetSeconds && (
+        <section className={raceStyles.performance} aria-labelledby="race-performance-title">
+          <div className={raceStyles.sectionTitle}>
+            <Flag size={17} aria-hidden="true" />
+            <h3 id="race-performance-title">Ce que représente ton objectif</h3>
+          </div>
+          <p className={raceStyles.hint}>
+            Repères pour un temps de {duration(race.targetSeconds)}. Les niveaux ci-dessous sont
+            indicatifs et ne prédisent pas ton futur index officiel.
+          </p>
+          <div className={raceStyles.performanceGrid}>
+            {(['utmb', 'itra'] as const).map((key) => {
+              const estimate = levels[key];
+              return (
+                <div className={raceStyles.metric} key={key}>
+                  <span className={raceStyles.label}>
+                    {estimate?.method === 'historical' ? 'Score' : 'Niveau'} {key.toUpperCase()}{' '}
+                    estimé
+                  </span>
+                  {estimate ? (
+                    <>
+                      <strong>
+                        {estimate.value}
+                        <small> / 1 000</small>
+                      </strong>
+                      <p>
+                        {estimate.method === 'personal'
+                          ? `Index actuel : ${profile[key]}`
+                          : `${estimate.references} scores publiés`}
+                      </p>
+                      {estimate.method === 'personal' && (
+                        <span className={raceStyles.metricRange}>
+                          Fourchette {estimate.low}–{estimate.high}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <strong className={raceStyles.missing}>—</strong>
+                      <button
+                        className="text-button"
+                        onClick={profile[key] === null ? editIndexes : addResult}
+                      >
+                        {profile[key] === null ? 'Renseigner mon index' : 'Ajouter un résultat'}{' '}
+                        <ArrowRight size={14} aria-hidden="true" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className={raceStyles.history}>
+            <div>
+              <span className={raceStyles.label}>
+                Dans le classement {race.fieldEdition ?? 'de référence'}
+              </span>
+              {field ? (
+                <p className={raceStyles.rank}>
+                  <strong>
+                    {field.rank > field.finishers
+                      ? 'Après'
+                      : `${field.rank}${field.rank === 1 ? 'er' : 'e'}`}
+                  </strong>
+                  <span>
+                    {field.rank > field.finishers
+                      ? `les ${field.finishers} finishers`
+                      : `sur ${field.finishers} finishers`}
+                  </span>
+                </p>
+              ) : (
+                <p className={raceStyles.hint}>
+                  {historyLoading
+                    ? 'Chargement du classement…'
+                    : 'Classement de référence manquant'}
+                </p>
+              )}
+            </div>
+            <div className={raceStyles.historyContext}>
+              {field ? (
+                <>
+                  <p>
+                    {field.lowRank}–{field.highRank}e pour ±10 % de temps.
+                  </p>
+                  <p>Comparaison avec une édition passée, le peloton à venir sera différent.</p>
+                  {race.fieldSource && (
+                    <a href={race.fieldSource} target="_blank" rel="noreferrer">
+                      Voir le classement <ArrowUpRight size={13} aria-hidden="true" />
+                    </a>
+                  )}
+                </>
+              ) : (
+                !historyLoading && (
+                  <button
+                    className="text-button"
+                    onClick={() => {
+                      if (rankingRef.current) {
+                        rankingRef.current.open = true;
+                        rankingRef.current.scrollIntoView({
+                          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                            ? 'instant'
+                            : 'smooth',
+                          block: 'start',
+                        });
+                        rankingRef.current.querySelector('summary')?.focus();
+                      }
+                    }}
+                  >
+                    Ajouter un classement <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+          {historyLoading && (
+            <p className={raceStyles.hint} role="status">
+              Récupération du classement officiel…
+            </p>
+          )}
+          {historyError && (
+            <div className="trail-warning" role="status">
+              <p>{historyError}</p>
+              <button className="text-button" onClick={() => setHistoryAttempt((n) => n + 1)}>
+                Réessayer
+              </button>
+            </div>
+          )}
+          {!compatible && (
+            <p className="trail-warning">
+              Le parcours a changé. Importe un classement correspondant à la distance et au dénivelé
+              de cet objectif.
+            </p>
+          )}
+          <details className={raceStyles.disclosure}>
+            <summary>
+              Comment lire ces estimations ? <ChevronRight size={16} aria-hidden="true" />
+            </summary>
+            <p>
+              Le temps de référence est une projection de tes résultats récents sur ce parcours,
+              avec une fourchette d’incertitude. Il ne tient pas compte de la météo, de la nuit ou
+              de la fatigue.
+            </p>
+            <p>
+              Les niveaux personnels utilisent séparément ton index UTMB ou ITRA et le rapport entre
+              le temps de référence et ton objectif. Lorsque des scores historiques suffisants
+              existent, ils servent d’étalonnage. Ces estimations ne sont pas des scores officiels
+              et ne prédisent pas la mise à jour de ton index.
+            </p>
+            <p>
+              L’index ITRA doit être renseigné depuis ton profil ITRA. Un index UTMB n’est jamais
+              converti en ITRA.
+            </p>
+          </details>
+        </section>
+      )}
       <section className="trail-terrain-section" aria-label="Terrain et trace GPX">
         {race.organizerTerrain && (
           <p className="trail-helper">
@@ -1515,8 +1656,11 @@ function RaceDetail({
           />
         </div>
       </section>
-      <details ref={rankingRef} className="trail-method">
-        <summary>Classement de référence & estimation des scores</summary>
+      <details ref={rankingRef} className={`trail-method ${raceStyles.method}`}>
+        <summary>
+          <span>Classement de référence & estimation des scores</span>
+          <ChevronRight size={16} aria-hidden="true" />
+        </summary>
         <p>
           {supportsHistory
             ? 'Le classement complet de l’UTLAC 120 de 2026 est récupéré automatiquement. Tu peux le remplacer par ton propre fichier. '
@@ -1589,8 +1733,11 @@ function RaceDetail({
           </p>
         )}
       </details>
-      <details className="trail-method">
-        <summary>Comprendre les calculs</summary>
+      <details className={`trail-method ${raceStyles.method}`}>
+        <summary>
+          <span>Comprendre les calculs</span>
+          <ChevronRight size={16} aria-hidden="true" />
+        </summary>
         <p>
           Modèle myStats v1, indicatif et non validé. E = distance en km + D+ en m / 100. P = 100 ×
           (0,65 × part des kilomètres à |pente| &gt; 15 % + 0,35 × part à pente &lt; −20 %). Pentes
@@ -1641,22 +1788,27 @@ function RaceDetail({
 }
 
 function RaceEditor({
+  initialDate,
   race,
   year,
   close,
   save,
 }: {
   race: TrailRace | null;
+  initialDate: string;
   year: number;
   close: () => void;
   save: (r: TrailRace) => void;
 }) {
+  const [photo, setPhoto] = useState<string | null>(race?.photo ?? null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoGeneration = useRef(0);
   const [query, setQuery] = useState('Lac de Côme');
   const [found, setFound] = useState<typeof catalog>([]);
   const [loaded, setLoaded] = useState<RaceCatalogItem | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
-  const [manual, setManual] = useState(!!race);
+  const [manual, setManual] = useState(!!race || !!initialDate);
   async function search(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
@@ -1753,6 +1905,7 @@ function RaceEditor({
           className="trail-form"
           onSubmit={(e) => {
             e.preventDefault();
+            if (photoBusy) return;
             const d = new FormData(e.currentTarget);
             const target = String(d.get('target') ?? '').trim();
             if (target && !parseDuration(target)) {
@@ -1761,6 +1914,7 @@ function RaceEditor({
             }
             const parsed = raceSchema.safeParse({
               id: race?.id ?? crypto.randomUUID(),
+              photo,
               name: d.get('name'),
               date: d.get('date'),
               distanceKm: Number(d.get('distanceKm')),
@@ -1799,12 +1953,59 @@ function RaceEditor({
           <Field label="Nom de la course" wide>
             <input name="name" required maxLength={250} defaultValue={initial?.name} />
           </Field>
+          <div className="trail-photo-editor wide">
+            <span>Photo de la course</span>
+            <RacePhoto photo={photo} className="trail-photo-preview" />
+            <p className="trail-helper">
+              Retrouve ce repère visuel dans ton calendrier et tes objectifs. JPG, PNG ou WebP,
+              jusqu’à 15 Mo.
+            </p>
+            <div className="trail-file-actions">
+              <label className="button secondary">
+                <Upload size={14} />{' '}
+                {photoBusy ? 'Préparation…' : photo ? 'Changer la photo' : 'Ajouter une photo'}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  aria-label="Photo de la course"
+                  disabled={photoBusy}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file) return;
+                    const generation = ++photoGeneration.current;
+                    setPhotoBusy(true);
+                    setError('');
+                    try {
+                      const next = await prepareRacePhoto(file);
+                      if (generation === photoGeneration.current) setPhoto(next);
+                    } catch (error) {
+                      if (generation === photoGeneration.current) setError(messageOf(error));
+                    } finally {
+                      if (generation === photoGeneration.current) setPhotoBusy(false);
+                    }
+                  }}
+                />
+              </label>
+              {photo && (
+                <button
+                  type="button"
+                  className="text-button"
+                  disabled={photoBusy}
+                  onClick={() => setPhoto(null)}
+                >
+                  <Trash2 size={14} /> Retirer la photo
+                </button>
+              )}
+            </div>
+          </div>
           <Field label="Date">
             <input
               type="date"
               name="date"
               required
-              defaultValue={initial?.date ?? `${year}-06-01`}
+              defaultValue={initial?.date ?? (initialDate || `${year}-06-01`)}
             />
           </Field>
           <Field label="Priorité">
@@ -1875,7 +2076,7 @@ function RaceEditor({
             <button type="button" className="button secondary" onClick={close}>
               Annuler
             </button>
-            <button className="button trail-primary">
+            <button className="button trail-primary" disabled={photoBusy}>
               {race ? 'Enregistrer' : 'Ajouter à ma saison'} <ArrowRight size={14} />
             </button>
           </div>

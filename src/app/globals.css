@@ -3135,3 +3135,286 @@ input:focus-visible {
     margin-left: 16px;
   }
 }
+
+/* A full season calendar with the same visual markers as the race workspace. */
+.trail-race-photo {
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+.trail-card-photo {
+  height: 96px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+.trail-detail-photo {
+  height: clamp(150px, 22vw, 260px);
+  border-radius: 10px;
+  margin-bottom: 24px;
+}
+.trail-photo-editor > span {
+  font-size: 13px;
+  font-weight: 600;
+}
+.trail-photo-preview {
+  height: 180px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+.trail-photo-editor .button {
+  cursor: pointer;
+  position: relative;
+}
+.trail-photo-editor .button:focus-within {
+  outline: 2px solid var(--trail-accent);
+  outline-offset: 4px;
+}
+.trail-sync-photo {
+  display: inline-block;
+  vertical-align: middle;
+  width: 40px;
+  height: 32px;
+  margin-right: 8px;
+  border-radius: 4px;
+}
+.trail-season-calendar {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.trail-calendar-months {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  border-bottom: 1px solid var(--line);
+}
+.trail-calendar-months button {
+  background: transparent;
+  color: var(--muted);
+  padding: 16px 4px;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+.trail-calendar-months span {
+  display: block;
+  font-size: 11px;
+  margin-top: 5px;
+}
+.trail-calendar-months button[aria-pressed='true'] {
+  background: var(--trail-soft);
+  color: var(--trail-accent);
+  font-weight: 600;
+  box-shadow: inset 0 -2px var(--trail-accent);
+}
+.trail-calendar-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+}
+.trail-calendar-heading h2 {
+  font-size: 26px;
+  text-transform: capitalize;
+  margin: 6px 0 0;
+}
+.trail-calendar-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.trail-calendar-controls button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.trail-calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  border-top: 1px solid var(--line);
+}
+.trail-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-content: start;
+}
+.trail-calendar-weekday {
+  text-align: center;
+  padding: 14px 0;
+  font-size: 11px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.trail-calendar-day {
+  min-height: 110px;
+  padding: 6px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.trail-calendar-day.is-empty {
+  background: var(--soft);
+}
+.trail-calendar-day.is-today {
+  background: var(--trail-soft);
+}
+.trail-calendar-day-number {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border-radius: 50%;
+  font-size: 12px;
+  color: var(--ink);
+}
+.is-today .trail-calendar-day-number {
+  color: var(--surface);
+  background: var(--trail-accent);
+}
+.trail-calendar-day-number:hover {
+  outline: 1px solid var(--trail-accent);
+}
+.trail-calendar-event {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 5px;
+  margin-top: 4px;
+  border-radius: 5px;
+  background: var(--trail-soft);
+  color: var(--trail-accent);
+  text-align: left;
+  border-left: 2px solid currentColor;
+}
+.trail-calendar-event.p-B {
+  color: var(--ink);
+  background: var(--soft);
+}
+.trail-calendar-event.p-C {
+  color: var(--muted);
+  background: var(--soft);
+}
+.trail-calendar-event > span {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trail-calendar-event > small {
+  font-size: 9px;
+  margin-left: auto;
+}
+.trail-calendar-event .trail-race-photo {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+.trail-calendar-agenda {
+  padding: 20px;
+  border-left: 1px solid var(--line);
+}
+.trail-calendar-agenda h3 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.trail-agenda-race {
+  display: flex;
+  width: 100%;
+  text-align: left;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  color: var(--ink);
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.trail-agenda-race > span {
+  flex: 1;
+  min-width: 0;
+}
+.trail-agenda-race strong {
+  display: block;
+  font-size: 14px;
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+.trail-agenda-race small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.trail-agenda-race .trail-race-photo {
+  width: 48px;
+  height: 56px;
+  border-radius: 6px;
+}
+.trail-calendar-rest {
+  color: var(--muted);
+  padding: 32px 0 16px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+@media (max-width: 1000px) {
+  .trail-calendar-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .trail-calendar-agenda {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+@media (max-width: 600px) {
+  .trail-calendar-months {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .trail-calendar-months button {
+    padding: 10px 4px;
+  }
+  .trail-calendar-heading {
+    padding: 16px 12px;
+    flex-wrap: wrap;
+  }
+  .trail-calendar-heading h2 {
+    font-size: 22px;
+  }
+  .trail-calendar-day {
+    padding: 3px;
+    min-height: 80px;
+  }
+  .trail-calendar-event {
+    flex-wrap: wrap;
+    padding: 3px;
+    gap: 2px;
+  }
+  .trail-calendar-event .trail-race-photo {
+    width: 100%;
+    height: 30px;
+  }
+  .trail-calendar-event > span {
+    width: 100%;
+    font-size: 9px;
+  }
+  .trail-calendar-event > small {
+    display: none;
+  }
+  .trail-calendar-weekday {
+    font-size: 10px;
+  }
+}
+.trail-month-dates .trail-year-photo {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+}
+
+@media (max-width: 480px) {
+  .trail-toolbar {
+    flex-wrap: wrap;
+    gap: 0 12px;
+  }
+  .trail-year {
+    margin-left: auto;
+    margin-bottom: 8px;
+  }
+}

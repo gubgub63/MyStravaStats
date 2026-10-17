@@ -1,0 +1,515 @@
+.workspace {
+  --detail-muted: color-mix(in srgb, var(--ink) 75%, var(--surface));
+  --detail-border: color-mix(in srgb, var(--ink) 30%, var(--surface));
+  container-type: inline-size;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.workspace .header {
+  padding-bottom: 24px;
+}
+.workspace .header h2 {
+  font-size: 2rem;
+  max-width: 26ch;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+.workspace :global(.trail-detail-top) {
+  margin-bottom: 16px;
+}
+.workspace :global(.trail-detail-top) > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.workspace :global(.trail-icon-button) {
+  min-width: 44px;
+  min-height: 44px;
+}
+.editButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: var(--surface);
+  cursor: pointer;
+}
+.editButton:hover {
+  background: var(--soft);
+  border-color: var(--detail-border);
+}
+.editButton:active {
+  background: var(--trail-soft);
+}
+.workspace :global(.trail-detail-date) {
+  font-size: 0.8125rem;
+  margin: 12px 0 20px;
+  color: var(--detail-muted);
+}
+.workspace :global(.trail-detail-date) a {
+  min-height: 44px;
+  align-items: center;
+  text-underline-offset: 4px;
+}
+.workspace :global(.trail-detail-date) a:hover {
+  text-decoration: underline;
+}
+.courseFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.courseFacts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.courseFacts span,
+.label {
+  font-size: 0.8125rem;
+  color: var(--detail-muted);
+  line-height: 1.5;
+}
+.courseFacts strong {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.3;
+}
+.courseFacts small {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--detail-muted);
+  letter-spacing: 0;
+}
+.courseSecondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 12px;
+  color: var(--detail-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.courseSecondary b {
+  font-weight: 500;
+  color: var(--ink);
+  margin-left: 4px;
+}
+.scenario {
+  padding: 24px 0;
+  border-block: 1px solid var(--line);
+}
+.scenarioHeading h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+.scenarioHeading > p {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--detail-muted);
+}
+.scenarioLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+.scenarioLayout > div,
+.personal {
+  min-width: 0;
+}
+.personal {
+  padding-left: 24px;
+  border-left: 1px solid var(--line);
+}
+.targetForm > label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.targetForm > label > span {
+  color: var(--detail-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.targetControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+}
+.workspace .targetControls input {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 100%;
+  min-height: 60px;
+  padding: 12px;
+  font-size: 1.875rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--detail-border);
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.workspace .targetControls input::placeholder {
+  color: var(--detail-muted);
+  opacity: 1;
+}
+.targetControls :global(.button) {
+  padding: 10px 14px;
+  min-height: 44px;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+  min-width: 112px;
+}
+.targetControls button:disabled {
+  background: transparent;
+  color: var(--detail-muted);
+  border: 1px solid var(--line);
+  cursor: default;
+  opacity: 1;
+}
+.targetControls input[aria-invalid='true'] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.hint {
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  color: var(--detail-muted);
+  margin-top: 8px;
+}
+.error {
+  color: var(--ink);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  margin-top: 8px;
+  font-weight: 500;
+}
+.paceRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  color: var(--detail-muted);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.paceRow strong {
+  color: var(--ink);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.draftNotice {
+  font-size: 0.8125rem;
+  color: var(--detail-muted);
+  line-height: 1.6;
+  margin-top: 12px;
+}
+.sectionTitle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.sectionTitle > svg {
+  color: var(--detail-muted);
+  flex-shrink: 0;
+}
+.sectionTitle h3 {
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  font-weight: 600;
+  margin: 0;
+}
+.predictionSummary {
+  display: grid;
+  gap: 16px;
+}
+.predictionSummary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.predictionSummary strong {
+  display: flex;
+  align-items: center;
+  min-height: 60px;
+  font-size: 1.75rem;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.predictionSummary b {
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 500;
+}
+.empty > p:first-child {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+.empty :global(.trail-file-actions) {
+  margin-bottom: 0;
+  gap: 8px;
+}
+.empty :global(.text-button) {
+  min-height: 44px;
+  font-size: 0.8125rem;
+}
+.performance {
+  padding: 28px 0 20px;
+}
+.performanceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 20px;
+  padding-block: 4px;
+}
+.metric {
+  padding-right: 20px;
+  min-width: 0;
+}
+.metric + .metric {
+  padding-left: 24px;
+  padding-right: 0;
+  border-left: 1px solid var(--line);
+}
+.metric > strong {
+  display: block;
+  font-size: 1.875rem;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin-top: 8px;
+}
+.metric strong small {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--detail-muted);
+  letter-spacing: 0;
+}
+.metric > p,
+.metricRange {
+  font-size: 0.75rem;
+  line-height: 1.65;
+  color: var(--detail-muted);
+}
+.metric > p {
+  margin-top: 8px;
+}
+.metricRange {
+  display: block;
+}
+.metric :global(.text-button) {
+  font-size: 0.8125rem;
+  min-height: 44px;
+  text-align: left;
+  flex-wrap: wrap;
+}
+.missing {
+  color: var(--detail-muted);
+}
+.history {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  align-items: start;
+  gap: 24px;
+  margin-top: 24px;
+  padding: 20px 0;
+  border-block: 1px solid var(--line);
+}
+.rank {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.rank strong {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.3;
+}
+.rank > span {
+  font-size: 0.75rem;
+  color: var(--detail-muted);
+}
+.historyContext {
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  color: var(--detail-muted);
+}
+.historyContext a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  min-height: 44px;
+  color: var(--ink);
+}
+.historyContext a:hover {
+  color: var(--trail-accent);
+}
+.historyContext :global(.text-button) {
+  min-height: 44px;
+  text-align: left;
+  font-size: 0.8125rem;
+}
+.disclosure {
+  margin-top: 8px;
+}
+.disclosure summary,
+.workspace .method summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  cursor: pointer;
+  color: var(--detail-muted);
+  font-size: 0.8125rem;
+  list-style: none;
+  border-radius: 4px;
+}
+.disclosure summary::-webkit-details-marker,
+.method summary::-webkit-details-marker {
+  display: none;
+}
+.disclosure summary > svg,
+.method summary > svg {
+  flex-shrink: 0;
+}
+.disclosure[open] > summary > svg,
+.method[open] > summary > svg {
+  transform: rotate(90deg);
+}
+.disclosure summary:hover,
+.workspace .method summary:hover {
+  color: var(--ink);
+  background: var(--soft);
+}
+.disclosure p {
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  color: var(--detail-muted);
+  margin: 8px 0 12px;
+  max-width: 65ch;
+}
+.workspace :global(.trail-terrain-section) {
+  padding-top: 24px;
+}
+.workspace :global(.trail-terrain-section) > :global(.trail-helper) {
+  font-size: 0.8125rem;
+}
+.workspace :global(.trail-relief-head) h3 {
+  font-size: 1.0625rem;
+}
+.workspace .method {
+  padding-block: 8px;
+}
+@container (max-width: 560px) {
+  .workspace .header h2 {
+    font-size: 1.625rem;
+  }
+  .scenarioLayout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .personal {
+    padding: 20px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .predictionSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .predictionSummary strong {
+    min-height: 0;
+    font-size: 1.5rem;
+  }
+  .predictionSummary b {
+    font-size: 0.9375rem;
+  }
+}
+@container (max-width: 430px) {
+  .scenario {
+    padding-block: 20px;
+  }
+  .targetControls :global(.button) {
+    width: 100%;
+    justify-content: center;
+  }
+  .history {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .metric {
+    padding-right: 12px;
+  }
+  .metric + .metric {
+    padding-left: 16px;
+  }
+  .metric strong small {
+    display: block;
+    margin-top: 4px;
+  }
+  .courseFacts {
+    gap: 16px;
+  }
+  .courseFacts strong {
+    font-size: 1.625rem;
+  }
+  .courseFacts small {
+    font-size: 0.75rem;
+  }
+  .editButton {
+    padding-inline: 10px;
+  }
+}
+@container (max-width: 350px) {
+  .predictionSummary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+}
+@container (min-width: 640px) {
+  .targetControls {
+    flex-wrap: nowrap;
+  }
+  .workspace .targetControls input {
+    flex-basis: 0;
+    min-width: 180px;
+  }
+  .targetControls :global(.button) {
+    padding-inline: 12px;
+    font-size: 0.75rem;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .disclosure summary > svg,
+  .method summary > svg {
+    transition: transform 160ms;
+  }
+}

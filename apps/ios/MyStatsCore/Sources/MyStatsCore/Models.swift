@@ -48,6 +48,7 @@ public struct Finisher: Codable, Equatable {
   }
 }
 public struct TrailRace: Codable, Identifiable, Equatable {
+  public var photo: String?
   public var id = UUID().uuidString, name = "", date = TrailMath.today
   public var distanceKm = 0.0, ascentM = 0.0
   public var priority = "A", notes = "", source = "", fieldLabel = "", fieldSource = "",
@@ -176,6 +177,8 @@ public struct Season: Codable, Equatable {
       guard !r.id.isEmpty, r.id.count <= 200,
         validRoute(r.name, r.date, r.distanceKm, r.ascentM, r.terrain), validTime(r.targetSeconds),
         ["A", "B", "C"].contains(r.priority), validSource(r.source), validSource(r.fieldSource),
+        r.photo == nil || (r.photo!.count <= 100000 && r.photo!.range(
+          of: #"^data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}$"#, options: .regularExpression) != nil),
         r.notes.count <= 5000, r.fieldLabel.count <= 250, r.organizerTerrain.count <= 250,
         r.field.count <= 20000,
         r.field.allSatisfy({ validTime($0.seconds) && validScore($0.utmb) && validScore($0.itra) }),

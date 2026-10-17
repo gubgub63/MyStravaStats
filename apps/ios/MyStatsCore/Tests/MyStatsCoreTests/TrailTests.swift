@@ -15,6 +15,15 @@ final class TrailTests: XCTestCase {
         contentsOf: Bundle.module.url(
           forResource: "trail-v1", withExtension: "json", subdirectory: "Fixtures")!))
   }
+  func testRacePhotoSurvivesSyncRoundTrip() throws {
+    var season = try fixture().season
+    XCTAssertNil(season.races[0].photo)
+    season.races[0].photo = "data:image/jpeg;base64,/9j/2Q=="
+    let restored = try Season.decode(season.encoded())
+    XCTAssertEqual(restored.races[0].photo, season.races[0].photo)
+    season.races[0].photo = "data:image/svg+xml;base64,AAAA"
+    XCTAssertThrowsError(try season.encoded())
+  }
   func testSharedPredictionParity() throws {
     let f = try fixture()
     let r = f.season.races[0]

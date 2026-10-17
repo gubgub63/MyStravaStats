@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { seasonSchema, type Season } from '@/lib/trail/types';
+import { RacePhoto } from './race-photo';
 import { duration } from '@/lib/trail/model';
 import { seasonStorageKey } from '@/lib/trail/storage';
 type Workspace = { revision: number; season: Season | null; updatedAt: string | null };
@@ -239,6 +240,7 @@ function SeasonSummary({ title, season }: { title: string; season: Season | null
           <ul>
             {season.races.map((r) => (
               <li key={r.id}>
+                <RacePhoto photo={r.photo} className="trail-sync-photo" />
                 {r.name} · {r.date} · objectif {duration(r.targetSeconds)}
               </li>
             ))}
