@@ -5,6 +5,7 @@ import type { TrailRace } from '@/lib/trail/types';
 import { monthDays } from '@/lib/trail/calendar';
 import { number } from '@/lib/utils/units';
 import { RacePhoto } from './race-photo';
+import { RaceCategoryBadge } from './race-category';
 
 export function SeasonCalendar({
   year,
@@ -134,6 +135,7 @@ export function SeasonCalendar({
                   {race.priority}
                 </small>
                 <strong>{race.name}</strong>
+                <RaceCategoryBadge race={race} />
                 <small>
                   {number(race.distanceKm, 1)} km · {number(race.ascentM)} m D+
                 </small>

@@ -210,6 +210,8 @@ export function Dashboard({
           <div className="period-controls">
             <div className="segmented" role="group" aria-label="Période">
               {[
+                [7, '1 semaine'],
+                [30, '1 mois'],
                 [90, '3 mois'],
                 [180, '6 mois'],
                 [365, '1 an'],

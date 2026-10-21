@@ -10,7 +10,7 @@ function timestamp(value: string) {
 }
 export function resolvePeriod(period: DashboardPeriod, now = new Date()) {
     if (typeof period === 'number') {
-        if (![90, 180, 365].includes(period)) throw new Error('Choisis une période valide.');
+        if (![7, 30, 90, 180, 365].includes(period)) throw new Error('Choisis une période valide.');
         const before = Math.floor(now.getTime() / 1000);
         const after = before - period * DAY;
         return {

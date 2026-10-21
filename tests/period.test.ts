@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { resolvePeriod, periodQuery } from '@/lib/dashboard/period';
 import { demoData } from '@/lib/dashboard/demo';
+describe('preset periods', () => {
+  it.each([7, 30, 90, 180, 365])('loads the last %i days', (days) => {
+    const now = new Date('2026-10-20T12:00:00Z');
+    const range = resolvePeriod(days, now);
+    expect(range.before - range.after).toBe(days * 86400);
+    expect(range.days).toBe(days);
+    expect(periodQuery(days)).toBe(`days=${days}`);
+    expect(demoData(days, now).days).toBe(days);
+  });
+});
 describe('custom date ranges', () => {
   it('includes both selected dates and allows a single day', () => {
     const range = resolvePeriod({ from: '2024-02-29', to: '2024-02-29' });

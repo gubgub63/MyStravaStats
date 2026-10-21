@@ -24,6 +24,7 @@ for (const directory of ['components', 'lib']) {
 for (const file of ['globals.css', 'icon.svg']) {
   await cp(join(root, 'src/app', file), join(build, 'src/app', file));
 }
+await cp(join(root, 'public'), join(build, 'public'), { recursive: true });
 await cp(join(root, 'scripts/pages-template/app'), join(build, 'src/app'), { recursive: true });
 await mkdir(join(build, 'src/app/demo'), { recursive: true });
 await writeFile(
@@ -43,7 +44,11 @@ await writeFile(
   })};\n`,
 );
 
-const environment = { ...process.env, NEXT_TELEMETRY_DISABLED: '1' };
+const environment = {
+  ...process.env,
+  NEXT_TELEMETRY_DISABLED: '1',
+  NEXT_PUBLIC_BASE_PATH: basePath,
+};
 for (const name of Object.keys(environment)) {
   if (name.startsWith('STRAVA_') || name === 'SESSION_SECRET' || name === 'NEXT_PUBLIC_APP_URL') {
     delete environment[name];

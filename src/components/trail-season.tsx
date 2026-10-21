@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import raceStyles from './race-detail.module.css';
 import { RacePhoto } from './race-photo';
+import { CategoryBadge, RaceCategoryBadge } from './race-category';
+import { catalogCategories, countRaceCategories } from '@/lib/trail/category';
 import { SeasonCalendar } from './season-calendar';
 import { prepareRacePhoto } from '@/lib/trail/photo';
 import { SeasonSync, markSeasonDirty } from './season-sync';
@@ -487,6 +489,25 @@ export function TrailSeason({
             </strong>
           </div>
         </div>
+        <section
+          className="trail-category-summary"
+          aria-label={`Courses par catégorie · saison ${year}`}
+        >
+          {countRaceCategories(races).map(({ category, count, estimated }) => (
+            <div className="trail-category-total" key={category}>
+              <CategoryBadge category={category} />
+              <strong>
+                {count}
+                <span> course{count !== 1 ? 's' : ''}</span>
+              </strong>
+              {estimated > 0 && (
+                <small>
+                  dont {estimated} estimée{estimated > 1 ? 's' : ''}
+                </small>
+              )}
+            </div>
+          ))}
+        </section>
         {view === 'calendar' && (
           <SeasonCalendar
             year={year}
@@ -600,6 +621,7 @@ export function TrailSeason({
                                 : 'Plaisir'}
                           </span>
                           <h3>{r.name}</h3>
+                          <RaceCategoryBadge race={r} />
                           <p>
                             {number(r.distanceKm, 1)} km <span>·</span> {number(r.ascentM)} m D+
                           </p>
@@ -1237,7 +1259,10 @@ function RaceDetail({
             </button>
           </div>
         </div>
-        <h2>{race.name}</h2>
+        <div className="trail-race-title">
+          <h2>{race.name}</h2>
+          <RaceCategoryBadge race={race} />
+        </div>
         <p className="trail-detail-date">
           <CalendarDays size={14} aria-hidden="true" /> {dateLabel(race.date)}
           {race.source && (
@@ -1873,6 +1898,7 @@ function RaceEditor({
                       {r.format}K · {r.location}
                     </span>
                   </span>
+                  <CategoryBadge category={catalogCategories[r.id]} />
                   <Plus size={16} />
                 </button>
               ))}
